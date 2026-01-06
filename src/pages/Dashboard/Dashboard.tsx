@@ -1,690 +1,337 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Target,
   TrendingUp,
   Users,
-  CheckCircle2,
-  AlertCircle,
-  Menu,
-  X,
-  LogOut,
+  Calendar,
   Settings,
-  Bell,
-  Search,
-  Plus,
-  ChevronRight,
+  LogOut,
+  User,
+  ChevronDown,
 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import "./css/Dashboard.css";
+
+interface UserInfo {
+  name: string;
+  email: string;
+  avatar?: string;
+  role?: string;
+}
+
+interface OKRData {
+  id: string;
+  title: string;
+  progress: number;
+  status: "on-track" | "at-risk" | "behind";
+  dueDate: string;
+}
+
+interface KPIData {
+  id: string;
+  name: string;
+  current: number;
+  target: number;
+  unit: string;
+}
 
 export default function Dashboard() {
-  const [sidebarOpen, setSidebarOpen] = useState(true);
   const navigate = useNavigate();
+  const [user, setUser] = useState<UserInfo | null>(null);
+  const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [okrs, setOkrs] = useState<OKRData[]>([]);
+  const [kpis, setKpis] = useState<KPIData[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const [user] = useState({
-    name: "Triết Đặng Minh Triết",
-    email: "1959042@itec.hcmus.edu.vn",
-    role: "Lecturer",
-  });
+  useEffect(() => {
+    // Check authentication
+    const authToken = sessionStorage.getItem("authToken");
+    const userInfo = sessionStorage.getItem("user");
 
-  const stats = [
-    {
-      label: "Total OKRs",
-      value: "12",
-      change: "+2 this month",
-      icon: Target,
-      color: "#1976d2",
-    },
-    {
-      label: "Completed KPIs",
-      value: "8/15",
-      change: "53% completion",
-      icon: CheckCircle2,
-      color: "#2e7d32",
-    },
-    {
-      label: "Team Members",
-      value: "24",
-      change: "+3 this quarter",
-      icon: Users,
-      color: "#ed6c02",
-    },
-    {
-      label: "At Risk",
-      value: "3",
-      change: "Needs attention",
-      icon: AlertCircle,
-      color: "#d32f2f",
-    },
-  ];
+    if (!authToken || !userInfo) {
+      navigate("/login", { replace: true });
+      return;
+    }
 
-  const okrs = [
-    {
-      id: 1,
-      title: "Improve Research Output",
-      progress: 75,
-      status: "On Track",
-      dueDate: "2024-12-31",
-      keyResults: [
-        {
-          text: "Publish 3 papers in Q-indexed journals",
-          completed: 2,
-          total: 3,
-        },
-        { text: "Secure 2 research grants", completed: 1, total: 2 },
-        {
-          text: "Present at 2 international conferences",
-          completed: 2,
-          total: 2,
-        },
-      ],
-    },
-    {
-      id: 2,
-      title: "Enhance Student Learning Experience",
-      progress: 60,
-      status: "On Track",
-      dueDate: "2024-12-31",
-      keyResults: [
-        {
-          text: "Achieve 90% student satisfaction rate",
-          completed: 85,
-          total: 90,
-        },
-        { text: "Develop 5 new course materials", completed: 3, total: 5 },
-        {
-          text: "Implement 2 innovative teaching methods",
-          completed: 1,
-          total: 2,
-        },
-      ],
-    },
-    {
-      id: 3,
-      title: "Expand Industry Collaboration",
-      progress: 40,
-      status: "At Risk",
-      dueDate: "2024-12-31",
-      keyResults: [
-        { text: "Partner with 3 tech companies", completed: 1, total: 3 },
-        { text: "Launch 2 joint projects", completed: 0, total: 2 },
-        { text: "Organize 1 industry workshop", completed: 0, total: 1 },
-      ],
-    },
-  ];
+    setUser(JSON.parse(userInfo));
+    fetchDashboardData();
+  }, [navigate]);
 
-  const recentActivity = [
-    {
-      action: "Updated KPI",
-      target: "Research Paper Submission",
-      time: "2 hours ago",
-    },
-    {
-      action: "Completed",
-      target: "Student Survey Analysis",
-      time: "5 hours ago",
-    },
-    { action: "Created OKR", target: "Q4 Teaching Goals", time: "1 day ago" },
-    {
-      action: "Reviewed",
-      target: "Team Performance Metrics",
-      time: "2 days ago",
-    },
-  ];
+  const fetchDashboardData = async () => {
+    try {
+      const authToken = sessionStorage.getItem("authToken");
+      
+      // Fetch OKRs
+      const okrResponse = await fetch("http://localhost:3001/api/okrs", {
+        headers: {
+          Authorization: `Bearer ${authToken}`,
+        },
+      });
+
+      // Fetch KPIs
+      const kpiResponse = await fetch("http://localhost:3001/api/kpis", {
+        headers: {
+          Authorization: `Bearer ${authToken}`,
+        },
+      });
+
+      if (okrResponse.ok && kpiResponse.ok) {
+        const okrData = await okrResponse.json();
+        const kpiData = await kpiResponse.json();
+        setOkrs(okrData);
+        setKpis(kpiData);
+      }
+    } catch (err) {
+      console.error("Failed to fetch dashboard data:", err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleLogout = () => {
     sessionStorage.removeItem("authToken");
     sessionStorage.removeItem("user");
-    alert("Logged out successfully");
     navigate("/login", { replace: true });
-;
   };
 
-  return (
-    <div
-      style={{
-        display: "flex",
-        height: "100vh",
-        backgroundColor: "#f5f5f5",
-        fontFamily:
-          '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-      }}
-    >
-      {/* Sidebar */}
-      <div
-        style={{
-          width: sidebarOpen ? "260px" : "0",
-          backgroundColor: "#1976d2",
-          color: "white",
-          transition: "width 0.3s",
-          overflow: "hidden",
-          display: "flex",
-          flexDirection: "column",
-        }}
-      >
-        <div
-          style={{
-            padding: "20px",
-            borderBottom: "1px solid rgba(255,255,255,0.1)",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-            <Target size={32} />
-            <div>
-              <h2 style={{ margin: 0, fontSize: "18px", fontWeight: "bold" }}>
-                OKR & KPI
-              </h2>
-              <p style={{ margin: 0, fontSize: "12px", opacity: 0.8 }}>
-                Management System
-              </p>
-            </div>
-          </div>
-        </div>
+  const handleProfileSettings = () => {
+    navigate("/profile");
+  };
 
-        <nav style={{ flex: 1, padding: "20px 0" }}>
-          {[
-            { icon: TrendingUp, label: "Dashboard", active: true },
-            { icon: Target, label: "My OKRs", active: false },
-            { icon: CheckCircle2, label: "KPIs", active: false },
-            { icon: Users, label: "Team", active: false },
-            { icon: Settings, label: "Settings", active: false },
-          ].map((item, i) => (
-            <button
-              key={i}
-              style={{
-                width: "100%",
-                padding: "12px 20px",
-                border: "none",
-                backgroundColor: item.active
-                  ? "rgba(255,255,255,0.1)"
-                  : "transparent",
-                color: "white",
-                display: "flex",
-                alignItems: "center",
-                gap: "12px",
-                cursor: "pointer",
-                fontSize: "14px",
-                transition: "background-color 0.2s",
-              }}
-              onMouseEnter={(e) =>
-                (e.currentTarget.style.backgroundColor =
-                  "rgba(255,255,255,0.1)")
-              }
-              onMouseLeave={(e) =>
-                (e.currentTarget.style.backgroundColor = item.active
-                  ? "rgba(255,255,255,0.1)"
-                  : "transparent")
-              }
-            >
-              <item.icon size={20} />
-              <span>{item.label}</span>
-            </button>
-          ))}
-        </nav>
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "on-track":
+        return "#22c55e";
+      case "at-risk":
+        return "#f59e0b";
+      case "behind":
+        return "#ef4444";
+      default:
+        return "#6b7280";
+    }
+  };
 
-        <div
-          style={{
-            padding: "20px",
-            borderTop: "1px solid rgba(255,255,255,0.1)",
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "10px",
-              marginBottom: "10px",
-            }}
-          >
-            <div
-              style={{
-                width: "40px",
-                height: "40px",
-                borderRadius: "50%",
-                backgroundColor: "#ff9800",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontWeight: "bold",
-              }}
-            >
-              T
-            </div>
-            <div style={{ flex: 1, overflow: "hidden" }}>
-              <p
-                style={{
-                  margin: 0,
-                  fontSize: "14px",
-                  fontWeight: "500",
-                  whiteSpace: "nowrap",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                }}
-              >
-                {user.name}
-              </p>
-              <p
-                style={{
-                  margin: 0,
-                  fontSize: "12px",
-                  opacity: 0.8,
-                  whiteSpace: "nowrap",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                }}
-              >
-                {user.role}
-              </p>
-            </div>
-          </div>
-          <button
-            onClick={handleLogout}
-            style={{
-              width: "100%",
-              padding: "8px",
-              border: "1px solid rgba(255,255,255,0.3)",
-              backgroundColor: "transparent",
-              color: "white",
-              borderRadius: "4px",
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: "8px",
-              fontSize: "14px",
-            }}
-          >
-            <LogOut size={16} />
-            Logout
-          </button>
-        </div>
+  if (isLoading) {
+    return (
+      <div className="dashboard-loading">
+        <div className="loading-spinner"></div>
+        <p>Loading dashboard...</p>
       </div>
+    );
+  }
+
+  return (
+    <div className="dashboard-container">
+      {/* Header */}
+      <header className="dashboard-header">
+        <div className="dashboard-header-content">
+          <div className="dashboard-logo">
+            <div className="dashboard-logo-icon">
+              <svg
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="white"
+                strokeWidth="2"
+              >
+                <path d="M12 2L2 7l10 5 10-5-10-5z" />
+                <path d="M2 17l10 5 10-5" />
+                <path d="M2 12l10 5 10-5" />
+              </svg>
+            </div>
+            <span className="dashboard-logo-text">OKR & KPI Management</span>
+          </div>
+
+          <div className="dashboard-user-menu">
+            <button
+              className="dashboard-user-button"
+              onClick={() => setShowProfileMenu(!showProfileMenu)}
+            >
+              <div className="dashboard-user-avatar">
+                {user?.avatar ? (
+                  <img src={user.avatar} alt={user.name} />
+                ) : (
+                  <User size={20} />
+                )}
+              </div>
+              <div className="dashboard-user-info">
+                <span className="dashboard-user-name">{user?.name}</span>
+                <span className="dashboard-user-email">{user?.email}</span>
+              </div>
+              <ChevronDown size={16} />
+            </button>
+
+            {showProfileMenu && (
+              <div className="dashboard-dropdown-menu">
+                <button
+                  className="dashboard-dropdown-item"
+                  onClick={handleProfileSettings}
+                >
+                  <Settings size={16} />
+                  <span>Profile Settings</span>
+                </button>
+                <div className="dashboard-dropdown-divider"></div>
+                <button
+                  className="dashboard-dropdown-item"
+                  onClick={handleLogout}
+                >
+                  <LogOut size={16} />
+                  <span>Logout</span>
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </header>
 
       {/* Main Content */}
-      <div
-        style={{
-          flex: 1,
-          display: "flex",
-          flexDirection: "column",
-          overflow: "hidden",
-        }}
-      >
-        {/* Header */}
-        <header
-          style={{
-            backgroundColor: "white",
-            padding: "16px 24px",
-            borderBottom: "1px solid #e0e0e0",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-            <button
-              onClick={() => setSidebarOpen(!sidebarOpen)}
-              style={{
-                padding: "8px",
-                border: "none",
-                backgroundColor: "transparent",
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-              }}
-            >
-              {sidebarOpen ? <X size={24} /> : <Menu size={24} />}
-            </button>
-            <h1
-              style={{
-                margin: 0,
-                fontSize: "24px",
-                fontWeight: "600",
-                color: "#1a1a1a",
-              }}
-            >
-              Dashboard
-            </h1>
+      <main className="dashboard-main">
+        <div className="dashboard-content">
+          {/* Welcome Section */}
+          <div className="dashboard-welcome">
+            <h1 className="dashboard-title">Welcome back, {user?.name?.split(" ")[0]}!</h1>
+            <p className="dashboard-subtitle">
+              Here's an overview of your OKRs and KPIs performance
+            </p>
           </div>
 
-          <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-            <div
-              style={{
-                position: "relative",
-                display: "flex",
-                alignItems: "center",
-              }}
-            >
-              <Search
-                size={20}
-                style={{ position: "absolute", left: "12px", color: "#666" }}
-              />
-              <input
-                type="text"
-                placeholder="Search..."
-                style={{
-                  padding: "8px 12px 8px 40px",
-                  border: "1px solid #e0e0e0",
-                  borderRadius: "8px",
-                  width: "250px",
-                  fontSize: "14px",
-                }}
-              />
+          {/* Stats Cards */}
+          <div className="dashboard-stats-grid">
+            <div className="dashboard-stat-card">
+              <div className="dashboard-stat-icon" style={{ backgroundColor: "#eff6ff" }}>
+                <Target size={24} color="#3b82f6" />
+              </div>
+              <div className="dashboard-stat-content">
+                <div className="dashboard-stat-label">Active OKRs</div>
+                <div className="dashboard-stat-value">{okrs.length}</div>
+              </div>
             </div>
-            <button
-              style={{
-                padding: "8px",
-                border: "none",
-                backgroundColor: "transparent",
-                cursor: "pointer",
-                position: "relative",
-              }}
-            >
-              <Bell size={24} />
-              <span
-                style={{
-                  position: "absolute",
-                  top: "4px",
-                  right: "4px",
-                  width: "8px",
-                  height: "8px",
-                  backgroundColor: "#d32f2f",
-                  borderRadius: "50%",
-                }}
-              ></span>
-            </button>
-          </div>
-        </header>
 
-        {/* Content */}
-        <main style={{ flex: 1, overflow: "auto", padding: "24px" }}>
-          {/* Stats Grid */}
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))",
-              gap: "20px",
-              marginBottom: "24px",
-            }}
-          >
-            {stats.map((stat, i) => (
-              <div
-                key={i}
-                style={{
-                  backgroundColor: "white",
-                  padding: "20px",
-                  borderRadius: "12px",
-                  boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "12px",
-                }}
-              >
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "flex-start",
-                  }}
-                >
-                  <div>
-                    <p style={{ margin: 0, color: "#666", fontSize: "14px" }}>
-                      {stat.label}
-                    </p>
-                    <h3
-                      style={{
-                        margin: "8px 0",
-                        fontSize: "32px",
-                        fontWeight: "bold",
-                        color: "#1a1a1a",
-                      }}
-                    >
-                      {stat.value}
-                    </h3>
-                    <p style={{ margin: 0, fontSize: "12px", color: "#666" }}>
-                      {stat.change}
-                    </p>
-                  </div>
-                  <div
-                    style={{
-                      width: "48px",
-                      height: "48px",
-                      borderRadius: "12px",
-                      backgroundColor: stat.color + "15",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                    }}
-                  >
-                    <stat.icon size={24} style={{ color: stat.color }} />
-                  </div>
+            <div className="dashboard-stat-card">
+              <div className="dashboard-stat-icon" style={{ backgroundColor: "#f0fdf4" }}>
+                <TrendingUp size={24} color="#22c55e" />
+              </div>
+              <div className="dashboard-stat-content">
+                <div className="dashboard-stat-label">On Track</div>
+                <div className="dashboard-stat-value">
+                  {okrs.filter((o) => o.status === "on-track").length}
                 </div>
               </div>
-            ))}
+            </div>
+
+            <div className="dashboard-stat-card">
+              <div className="dashboard-stat-icon" style={{ backgroundColor: "#fef3c7" }}>
+                <Calendar size={24} color="#f59e0b" />
+              </div>
+              <div className="dashboard-stat-content">
+                <div className="dashboard-stat-label">At Risk</div>
+                <div className="dashboard-stat-value">
+                  {okrs.filter((o) => o.status === "at-risk").length}
+                </div>
+              </div>
+            </div>
+
+            <div className="dashboard-stat-card">
+              <div className="dashboard-stat-icon" style={{ backgroundColor: "#f0f9ff" }}>
+                <Users size={24} color="#0ea5e9" />
+              </div>
+              <div className="dashboard-stat-content">
+                <div className="dashboard-stat-label">Active KPIs</div>
+                <div className="dashboard-stat-value">{kpis.length}</div>
+              </div>
+            </div>
           </div>
 
           {/* OKRs Section */}
-          <div
-            style={{
-              backgroundColor: "white",
-              borderRadius: "12px",
-              boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
-              marginBottom: "24px",
-            }}
-          >
-            <div
-              style={{
-                padding: "20px",
-                borderBottom: "1px solid #e0e0e0",
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-              }}
-            >
-              <h2 style={{ margin: 0, fontSize: "20px", fontWeight: "600" }}>
-                Active OKRs
-              </h2>
-              <button
-                style={{
-                  padding: "8px 16px",
-                  backgroundColor: "#1976d2",
-                  color: "white",
-                  border: "none",
-                  borderRadius: "8px",
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "8px",
-                  fontSize: "14px",
-                  fontWeight: "500",
-                }}
-              >
-                <Plus size={16} />
-                New OKR
-              </button>
+          <div className="dashboard-section">
+            <div className="dashboard-section-header">
+              <h2 className="dashboard-section-title">Your OKRs</h2>
+              <button className="dashboard-button-primary">+ New OKR</button>
             </div>
 
-            <div style={{ padding: "20px" }}>
-              {okrs.map((okr) => (
-                <div
-                  key={okr.id}
-                  style={{
-                    marginBottom: "20px",
-                    padding: "16px",
-                    border: "1px solid #e0e0e0",
-                    borderRadius: "8px",
-                  }}
-                >
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "flex-start",
-                      marginBottom: "12px",
-                    }}
-                  >
-                    <div style={{ flex: 1 }}>
-                      <h3
-                        style={{
-                          margin: "0 0 8px 0",
-                          fontSize: "16px",
-                          fontWeight: "600",
-                        }}
-                      >
-                        {okr.title}
-                      </h3>
+            <div className="dashboard-card-list">
+              {okrs.length > 0 ? (
+                okrs.map((okr) => (
+                  <div key={okr.id} className="dashboard-okr-card">
+                    <div className="dashboard-okr-header">
+                      <h3 className="dashboard-okr-title">{okr.title}</h3>
                       <span
-                        style={{
-                          padding: "4px 12px",
-                          backgroundColor:
-                            okr.status === "At Risk" ? "#ffebee" : "#e8f5e9",
-                          color:
-                            okr.status === "At Risk" ? "#d32f2f" : "#2e7d32",
-                          borderRadius: "12px",
-                          fontSize: "12px",
-                          fontWeight: "500",
-                        }}
+                        className="dashboard-status-badge"
+                        style={{ backgroundColor: getStatusColor(okr.status) }}
                       >
-                        {okr.status}
+                        {okr.status.replace("-", " ")}
                       </span>
                     </div>
-                    <span style={{ fontSize: "12px", color: "#666" }}>
-                      Due: {okr.dueDate}
-                    </span>
-                  </div>
-
-                  <div style={{ marginBottom: "12px" }}>
-                    <div
-                      style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        marginBottom: "4px",
-                      }}
-                    >
-                      <span style={{ fontSize: "12px", color: "#666" }}>
-                        Progress
-                      </span>
-                      <span style={{ fontSize: "12px", fontWeight: "600" }}>
-                        {okr.progress}%
-                      </span>
-                    </div>
-                    <div
-                      style={{
-                        width: "100%",
-                        height: "8px",
-                        backgroundColor: "#e0e0e0",
-                        borderRadius: "4px",
-                        overflow: "hidden",
-                      }}
-                    >
+                    <div className="dashboard-progress-bar">
                       <div
+                        className="dashboard-progress-fill"
                         style={{
                           width: `${okr.progress}%`,
-                          height: "100%",
-                          backgroundColor:
-                            okr.status === "At Risk" ? "#ff9800" : "#4caf50",
-                          transition: "width 0.3s",
+                          backgroundColor: getStatusColor(okr.status),
                         }}
                       ></div>
                     </div>
+                    <div className="dashboard-okr-footer">
+                      <span className="dashboard-okr-progress">{okr.progress}% Complete</span>
+                      <span className="dashboard-okr-date">Due: {okr.dueDate}</span>
+                    </div>
                   </div>
+                ))
+              ) : (
+                <div className="dashboard-empty-state">
+                  <Target size={48} color="#d1d5db" />
+                  <p>No OKRs yet. Create your first OKR to get started!</p>
+                </div>
+              )}
+            </div>
+          </div>
 
-                  <div>
-                    <p
-                      style={{
-                        margin: "0 0 8px 0",
-                        fontSize: "12px",
-                        fontWeight: "600",
-                        color: "#666",
-                      }}
-                    >
-                      Key Results:
-                    </p>
-                    {okr.keyResults.map((kr, i) => (
-                      <div
-                        key={i}
-                        style={{
-                          padding: "8px 12px",
-                          backgroundColor: "#f9f9f9",
-                          borderRadius: "4px",
-                          marginBottom: "4px",
-                          display: "flex",
-                          justifyContent: "space-between",
-                          alignItems: "center",
-                        }}
-                      >
-                        <span style={{ fontSize: "14px", color: "#333" }}>
-                          {kr.text}
-                        </span>
-                        <span
-                          style={{
-                            fontSize: "12px",
-                            fontWeight: "600",
-                            color:
-                              kr.completed === kr.total ? "#2e7d32" : "#666",
-                          }}
-                        >
-                          {kr.completed}/{kr.total}
-                        </span>
+          {/* KPIs Section */}
+          <div className="dashboard-section">
+            <div className="dashboard-section-header">
+              <h2 className="dashboard-section-title">Key Performance Indicators</h2>
+              <button className="dashboard-button-primary">+ New KPI</button>
+            </div>
+
+            <div className="dashboard-kpi-grid">
+              {kpis.length > 0 ? (
+                kpis.map((kpi) => (
+                  <div key={kpi.id} className="dashboard-kpi-card">
+                    <h4 className="dashboard-kpi-name">{kpi.name}</h4>
+                    <div className="dashboard-kpi-values">
+                      <div className="dashboard-kpi-current">
+                        {kpi.current}
+                        <span className="dashboard-kpi-unit">{kpi.unit}</span>
                       </div>
-                    ))}
+                      <div className="dashboard-kpi-target">
+                        / {kpi.target} {kpi.unit}
+                      </div>
+                    </div>
+                    <div className="dashboard-progress-bar dashboard-progress-bar-small">
+                      <div
+                        className="dashboard-progress-fill"
+                        style={{
+                          width: `${(kpi.current / kpi.target) * 100}%`,
+                          backgroundColor: "#3b82f6",
+                        }}
+                      ></div>
+                    </div>
+                    <div className="dashboard-kpi-percentage">
+                      {Math.round((kpi.current / kpi.target) * 100)}% of target
+                    </div>
                   </div>
+                ))
+              ) : (
+                <div className="dashboard-empty-state">
+                  <TrendingUp size={48} color="#d1d5db" />
+                  <p>No KPIs yet. Add your first KPI to track performance!</p>
                 </div>
-              ))}
+              )}
             </div>
           </div>
-
-          {/* Recent Activity */}
-          <div
-            style={{
-              backgroundColor: "white",
-              borderRadius: "12px",
-              boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
-            }}
-          >
-            <div
-              style={{
-                padding: "20px",
-                borderBottom: "1px solid #e0e0e0",
-              }}
-            >
-              <h2 style={{ margin: 0, fontSize: "20px", fontWeight: "600" }}>
-                Recent Activity
-              </h2>
-            </div>
-            <div style={{ padding: "20px" }}>
-              {recentActivity.map((activity, i) => (
-                <div
-                  key={i}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    padding: "12px 0",
-                    borderBottom:
-                      i < recentActivity.length - 1
-                        ? "1px solid #f0f0f0"
-                        : "none",
-                  }}
-                >
-                  <div style={{ flex: 1 }}>
-                    <p
-                      style={{
-                        margin: "0 0 4px 0",
-                        fontSize: "14px",
-                        color: "#333",
-                      }}
-                    >
-                      <strong>{activity.action}</strong> {activity.target}
-                    </p>
-                    <p style={{ margin: 0, fontSize: "12px", color: "#666" }}>
-                      {activity.time}
-                    </p>
-                  </div>
-                  <ChevronRight size={20} style={{ color: "#999" }} />
-                </div>
-              ))}
-            </div>
-          </div>
-        </main>
-      </div>
+        </div>
+      </main>
     </div>
   );
 }
