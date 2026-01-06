@@ -2,12 +2,19 @@
 @tailwind components;
 @tailwind utilities;
 
-html, body, #root {
+/* --- PHẦN QUAN TRỌNG NHẤT ĐỂ FIX SCROLL --- */
+html,
+body,
+#root {
   margin: 0;
   padding: 0;
-  height: 100%;
   width: 100%;
+  height: 100%;
+  overflow: hidden;
+  /* Cấm scroll ở cấp độ body */
 }
+
+/* ------------------------------------------ */
 
 :root {
   font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
@@ -29,16 +36,18 @@ a {
   color: #646cff;
   text-decoration: inherit;
 }
+
 a:hover {
   color: #535bf2;
 }
 
+/* TAO ĐÃ XÓA 'display: flex' VÀ 'place-items: center' Ở ĐÂY */
 body {
   margin: 0;
-  display: flex;
-  place-items: center;
-  min-width: 320px;
-  min-height: 100vh;
+  /* display: flex;  <-- Đã xóa dòng này (thủ phạm) */
+  /* place-items: center; <-- Đã xóa dòng này (thủ phạm) */
+  /* min-width: 320px; <-- Xóa luôn cho đỡ vướng */
+  /* min-height: 100vh; <-- Xóa luôn vì đã set height 100% ở trên */
 }
 
 h1 {
@@ -57,9 +66,11 @@ button {
   cursor: pointer;
   transition: border-color 0.25s;
 }
+
 button:hover {
   border-color: #646cff;
 }
+
 button:focus,
 button:focus-visible {
   outline: 4px auto -webkit-focus-ring-color;
@@ -70,9 +81,11 @@ button:focus-visible {
     color: #213547;
     background-color: #ffffff;
   }
+
   a:hover {
     color: #747bff;
   }
+
   button {
     background-color: #f9f9f9;
   }
