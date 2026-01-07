@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Plus, Trash2, Save, AlertCircle, CheckCircle, X } from "lucide-react";
-import "./css/AdminSettings.css";
+import "./css/AdminSetting.css";
 
 interface Domain {
   id: string;

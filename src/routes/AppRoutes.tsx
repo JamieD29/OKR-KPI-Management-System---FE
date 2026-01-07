@@ -2,56 +2,68 @@ import React from "react";
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import Login from "../pages/Login/Login";
 import Dashboard from "../pages/Dashboard/Dashboard";
+import AdminSettings from "../pages/AdminSetting/AdminSetting";
 
-// Auth check hook
+// 1. Hook check đăng nhập
 function useAuth() {
   const authToken = sessionStorage.getItem("authToken");
   return !!authToken;
 }
 
-// Protected Route Component
+// 2. Hàm check Role lấy từ Session
+function getUserRole() {
+  const userStr = sessionStorage.getItem("user");
+  if (!userStr) return null;
+  try {
+    const user = JSON.parse(userStr);
+    return user.role; // Trả về 'admin' hoặc 'user'
+  } catch {
+    return null;
+  }
+}
+
+// ... (Giữ nguyên ProtectedRoute và PublicRoute như cũ) ...
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAuth();
   const location = useLocation();
-
-  if (!isAuthenticated) {
-    // Redirect to login but save the location they were trying to go to
-    return <Navigate to="/login" state={{ from: location }} replace />;
-  }
-
+  if (!isAuthenticated) return <Navigate to="/login" state={{ from: location }} replace />;
   return <>{children}</>;
 }
 
-// Public Route Component (redirect to dashboard if already logged in)
 function PublicRoute({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAuth();
   const location = useLocation();
-
   if (isAuthenticated) {
-    // Get the page they were trying to visit before login, or default to dashboard
     const from = (location.state as any)?.from?.pathname || "/dashboard";
     return <Navigate to={from} replace />;
   }
-
   return <>{children}</>;
 }
 
 function App() {
+  const isAuthenticated = useAuth();
+  const userRole = getUserRole(); // Lấy role hiện tại
+
   return (
     <Routes>
-      {/* Root redirects to dashboard or login based on auth */}
+      {/* --- SỬA ĐOẠN NÀY: Root Redirect thông minh hơn --- */}
       <Route
         path="/"
         element={
-          useAuth() ? (
-            <Navigate to="/dashboard" replace />
+          isAuthenticated ? (
+            // Nếu là Admin thì về Admin Settings, ngược lại về Dashboard
+            userRole?.toLowerCase() === 'admin' ? (
+               <Navigate to="/admin/settings" replace />
+            ) : (
+               <Navigate to="/dashboard" replace />
+            )
           ) : (
             <Navigate to="/login" replace />
           )
         }
       />
+      {/* -------------------------------------------------- */}
 
-      {/* Public route - login page */}
       <Route
         path="/login"
         element={
@@ -61,7 +73,6 @@ function App() {
         }
       />
 
-      {/* Protected routes - require authentication */}
       <Route
         path="/dashboard"
         element={
@@ -71,7 +82,16 @@ function App() {
         }
       />
 
-      {/* Catch all - redirect to home */}
+      {/* Route Admin */}
+      <Route
+        path="/admin/settings"
+        element={
+          <ProtectedRoute>
+            <AdminSettings />
+          </ProtectedRoute>
+        }
+      />
+
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
