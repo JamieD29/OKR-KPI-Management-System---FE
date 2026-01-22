@@ -3,23 +3,27 @@ import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import Login from "../pages/Login/Login";
 import Dashboard from "../pages/Dashboard/Dashboard";
 import AdminSettings from "../pages/AdminSetting/AdminSetting";
+// import Department from "../pages/Department/Department";
+import DepartmentManagerPage from "../pages/Department/Department";
 
 // 1. Hook check đăng nhập
 function useAuth() {
-  const authToken = sessionStorage.getItem("authToken");
-  return !!authToken;
+  // const authToken = sessionStorage.getItem("authToken");
+  // return !!authToken;
+  return true;
 }
 
 // 2. Hàm check Role lấy từ Session
 function getUserRole() {
-  const userStr = sessionStorage.getItem("user");
-  if (!userStr) return null;
-  try {
-    const user = JSON.parse(userStr);
-    return user.role; // Trả về 'admin' hoặc 'user'
-  } catch {
-    return null;
-  }
+  // const userStr = sessionStorage.getItem("user");
+  // if (!userStr) return null;
+  // try {
+  //   const user = JSON.parse(userStr);
+  //   return user.role; // Trả về 'admin' hoặc 'user'
+  // } catch {
+  //   return null;
+  // }
+  return 'admin';
 }
 
 // ... (Giữ nguyên ProtectedRoute và PublicRoute như cũ) ...
@@ -52,10 +56,10 @@ function App() {
         element={
           isAuthenticated ? (
             // Nếu là Admin thì về Admin Settings, ngược lại về Dashboard
-            userRole?.toLowerCase() === 'admin' ? (
-               <Navigate to="/admin/settings" replace />
+            userRole?.toLowerCase() === "admin" ? (
+              <Navigate to="/admin/settings" replace />
             ) : (
-               <Navigate to="/dashboard" replace />
+              <Navigate to="/dashboard" replace />
             )
           ) : (
             <Navigate to="/login" replace />
@@ -91,7 +95,7 @@ function App() {
           </ProtectedRoute>
         }
       />
-
+      <Route path="/admin/department" element={<DepartmentManagerPage />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

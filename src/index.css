@@ -1,7 +1,4 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
+@import "tailwindcss";
 /* --- PHẦN QUAN TRỌNG NHẤT ĐỂ FIX SCROLL --- */
 html,
 body,
