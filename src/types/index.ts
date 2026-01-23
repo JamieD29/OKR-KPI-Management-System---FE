@@ -1,9 +1,22 @@
 export interface User {
   id: string;
-  name: string;
   email: string;
-  role: 'user' | 'admin';
-  avatar?: string;
+  name: string;
+  avatarUrl?: string;
+  roles: string[]; // ['SYSTEM_ADMIN', 'USER'...]
+  department?: {
+    id: string;
+    name: string;
+  };
+
+  // 🔥 THÊM CÁC TRƯỜNG MỚI VÀO ĐÂY
+  jobTitle?: string; // Trưởng khoa, Giảng viên...
+  academicRank?: string; // GS, PGS...
+  degree?: string; // TS, ThS...
+  teachingHours?: number;
+  awards?: string;
+  intellectualProperty?: string;
+  joinDate?: string;
 }
 
 export interface OKR {
