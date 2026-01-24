@@ -41,7 +41,7 @@ export default function Dashboard() {
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [okrs, setOkrs] = useState<OKRData[]>([]);
   const [kpis, setKpis] = useState<KPIData[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     // Check authentication
