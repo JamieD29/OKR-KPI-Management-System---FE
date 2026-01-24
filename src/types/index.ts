@@ -1,3 +1,12 @@
+export type DepartmentLevel = 1 | 2 | 3;
+
+export interface Department {
+  id: string;
+  name: string;
+  level: DepartmentLevel;
+  description?: string;
+  parentId: string | null;
+}
 export interface User {
   id: string;
   email: string;
@@ -24,7 +33,7 @@ export interface OKR {
   title: string;
   description?: string;
   progress: number;
-  status: 'on-track' | 'at-risk' | 'behind';
+  status: "on-track" | "at-risk" | "behind";
   dueDate: string | null;
 }
 

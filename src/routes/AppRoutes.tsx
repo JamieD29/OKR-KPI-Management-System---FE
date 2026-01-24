@@ -6,7 +6,7 @@ import Login from '../pages/Login';
 import Dashboard from '../pages/Dashboard';
 import AdminSettings from '../pages/AdminSetting';
 import ProfileSettings from '../pages/ProfileSetting';
-import Department from '../pages/Department';
+import Department from '../Department/Department';
 import AuthCallback from '../pages/AuthCallback'; // Import thêm
 import AcceptInvitation from '../components/AcceptInvitation'; // Import thêm
 
@@ -78,9 +78,10 @@ export default function AppRoutes() {
       {/* --- MAIN LAYOUT GROUP --- */}
       <Route
         element={
-          <ProtectedRoute>
-            <MainLayout />
-          </ProtectedRoute>
+          // <ProtectedRoute>
+          //   <MainLayout />
+          // </ProtectedRoute>
+          <MainLayout />
         }
       >
         {/* Các trang User thường */}
