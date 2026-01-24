@@ -1,69 +1,71 @@
-import React from "react";
-import { Routes, Route, Navigate, useLocation } from "react-router-dom";
-import Login from "../pages/Login/Login";
-import Dashboard from "../pages/Dashboard/Dashboard";
-import AdminSettings from "../pages/AdminSetting/AdminSetting";
+import React from 'react';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
+
+// Import Pages
+import Login from '../pages/Login';
+import Dashboard from '../pages/Dashboard';
+import AdminSettings from '../pages/AdminSetting';
+import ProfileSettings from '../pages/ProfileSetting';
+import Department from '../pages/Department';
+import AuthCallback from '../pages/AuthCallback'; // Import thêm
+import AcceptInvitation from '../components/AcceptInvitation'; // Import thêm
+
+// Import Layouts
+import MainLayout from '../layouts/MainLayout';
 
 // 1. Hook check đăng nhập
 function useAuth() {
-  const authToken = sessionStorage.getItem("authToken");
+  const authToken = sessionStorage.getItem('authToken');
   return !!authToken;
 }
 
-// 2. Hàm check Role lấy từ Session
-function getUserRole() {
-  const userStr = sessionStorage.getItem("user");
-  if (!userStr) return null;
-  try {
-    const user = JSON.parse(userStr);
-    return user.role; // Trả về 'admin' hoặc 'user'
-  } catch {
-    return null;
+// 2. Component bảo vệ Admin (CÓ LOG DEBUG)
+function AdminRoute({ children }: { children: React.ReactNode }) {
+  const userStr = sessionStorage.getItem('user');
+  const user = userStr ? JSON.parse(userStr) : {};
+  const roles = user.roles || []; // Mảng roles từ backend
+
+  // --- DEBUG LOG (Mở F12 xem cái này in ra gì) ---
+  console.log('👮 AdminRoute Check:', { roles });
+
+  // Check quyền (SYSTEM_ADMIN từ backend, hoặc admin thường)
+  const isAdmin = roles.includes('SYSTEM_ADMIN') || roles.includes('admin');
+
+  if (!isAdmin) {
+    console.warn('⛔ Access Denied: Not an Admin -> Redirecting to Dashboard');
+    return <Navigate to="/dashboard" replace />;
   }
+
+  return <>{children}</>;
 }
 
-// ... (Giữ nguyên ProtectedRoute và PublicRoute như cũ) ...
+// 3. Component bảo vệ Route thường
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAuth();
   const location = useLocation();
-  if (!isAuthenticated) return <Navigate to="/login" state={{ from: location }} replace />;
+  if (!isAuthenticated)
+    return <Navigate to="/login" state={{ from: location }} replace />;
   return <>{children}</>;
 }
 
+// 4. Component Route công khai
 function PublicRoute({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAuth();
-  const location = useLocation();
-  if (isAuthenticated) {
-    const from = (location.state as any)?.from?.pathname || "/dashboard";
-    return <Navigate to={from} replace />;
-  }
+  if (isAuthenticated) return <Navigate to="/dashboard" replace />;
   return <>{children}</>;
 }
 
-function App() {
-  const isAuthenticated = useAuth();
-  const userRole = getUserRole(); // Lấy role hiện tại
-
+export default function AppRoutes() {
   return (
     <Routes>
-      {/* --- SỬA ĐOẠN NÀY: Root Redirect thông minh hơn --- */}
-      <Route
-        path="/"
-        element={
-          isAuthenticated ? (
-            // Nếu là Admin thì về Admin Settings, ngược lại về Dashboard
-            userRole?.toLowerCase() === 'admin' ? (
-               <Navigate to="/admin/settings" replace />
-            ) : (
-               <Navigate to="/dashboard" replace />
-            )
-          ) : (
-            <Navigate to="/login" replace />
-          )
-        }
-      />
-      {/* -------------------------------------------------- */}
+      {/* --- CÁC ROUTE PHỤ (Auth, Invite) --- */}
+      <Route path="/auth/microsoft/callback" element={<AuthCallback />} />
+      <Route path="/invite/accept/:token" element={<AcceptInvitation />} />
 
+      {/* --- ROOT REDIRECT --- */}
+      <Route path="/" element={<Navigate to="/dashboard" replace />} />
+
+      {/* --- LOGIN --- */}
       <Route
         path="/login"
         element={
@@ -73,28 +75,32 @@ function App() {
         }
       />
 
+      {/* --- MAIN LAYOUT GROUP --- */}
       <Route
-        path="/dashboard"
         element={
           <ProtectedRoute>
-            <Dashboard />
+            <MainLayout />
           </ProtectedRoute>
         }
-      />
+      >
+        {/* Các trang User thường */}
+        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/profile" element={<ProfileSettings />} />
+        <Route path="/admin/department" element={<Department />} />
 
-      {/* Route Admin */}
-      <Route
-        path="/admin/settings"
-        element={
-          <ProtectedRoute>
-            <AdminSettings />
-          </ProtectedRoute>
-        }
-      />
+        {/* Trang Admin (Được bảo vệ 2 lớp) */}
+        <Route
+          path="/admin/settings"
+          element={
+            <AdminRoute>
+              <AdminSettings />
+            </AdminRoute>
+          }
+        />
+      </Route>
 
+      {/* --- CATCH ALL --- */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 }
-
-export default App;
