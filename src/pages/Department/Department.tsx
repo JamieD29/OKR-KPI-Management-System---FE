@@ -1,13 +1,13 @@
 import { useState } from "react";
-import type { Department, User } from "../types/index";
-import { MOCK_DEPARTMENTS, MOCK_USERS } from "../mocks/mockData";
+import type { Department, User } from "../../types/index";
+import { MOCK_DEPARTMENTS, MOCK_USERS } from "../../mocks/mockData";
 
 import { Breadcrumb } from "./components/Breadcrumb";
 import { DepartmentGrid } from "./components/DepartmentGrid";
 import { MemberTable } from "./components/MemberTable";
 import { MemberDetailModal } from "./components/MemberDetailModal";
-import { AddDepartmentModal } from './components/AddDepartmentModal';
- // Import Modal mới
+import { AddDepartmentModal } from "./components/AddDepartmentModal";
+// Import Modal mới
 const DepartmentManagerPage = () => {
   const [departments, setDepartments] =
     useState<Department[]>(MOCK_DEPARTMENTS);
@@ -111,6 +111,6 @@ const DepartmentManagerPage = () => {
       />
     </div>
   );
-};;
+};
 
 export default DepartmentManagerPage;

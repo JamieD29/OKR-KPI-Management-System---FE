@@ -1,38 +1,40 @@
-import React from 'react';
-import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import React from "react";
+import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 
 // Import Pages
-import Login from '../pages/Login';
-import Dashboard from '../pages/Dashboard';
-import AdminSettings from '../pages/AdminSetting';
-import ProfileSettings from '../pages/ProfileSetting';
-import Department from '../Department/Department';
-import AuthCallback from '../pages/AuthCallback'; // Import thêm
-import AcceptInvitation from '../components/AcceptInvitation'; // Import thêm
+import Login from "../pages/Login";
+import Dashboard from "../pages/Dashboard";
+import AdminSettings from "../pages/AdminSetting";
+import ProfileSettings from "../pages/ProfileSetting";
+import Department from "../pages/Department/Department";
+import AuthCallback from "../pages/AuthCallback"; // Import thêm
+import AcceptInvitation from "../components/AcceptInvitation"; // Import thêm
 
 // Import Layouts
-import MainLayout from '../layouts/MainLayout';
+import MainLayout from "../layouts/MainLayout";
+import MemberManagerPage from "../pages/Member/MemberManagePage";
+import MemberDetailPage from "../pages/Member/pages/MemberDetailPage";
 
 // 1. Hook check đăng nhập
 function useAuth() {
-  const authToken = sessionStorage.getItem('authToken');
+  const authToken = sessionStorage.getItem("authToken");
   return !!authToken;
 }
 
 // 2. Component bảo vệ Admin (CÓ LOG DEBUG)
 function AdminRoute({ children }: { children: React.ReactNode }) {
-  const userStr = sessionStorage.getItem('user');
+  const userStr = sessionStorage.getItem("user");
   const user = userStr ? JSON.parse(userStr) : {};
   const roles = user.roles || []; // Mảng roles từ backend
 
   // --- DEBUG LOG (Mở F12 xem cái này in ra gì) ---
-  console.log('👮 AdminRoute Check:', { roles });
+  console.log("👮 AdminRoute Check:", { roles });
 
   // Check quyền (SYSTEM_ADMIN từ backend, hoặc admin thường)
-  const isAdmin = roles.includes('SYSTEM_ADMIN') || roles.includes('admin');
+  const isAdmin = roles.includes("SYSTEM_ADMIN") || roles.includes("admin");
 
   if (!isAdmin) {
-    console.warn('⛔ Access Denied: Not an Admin -> Redirecting to Dashboard');
+    console.warn("⛔ Access Denied: Not an Admin -> Redirecting to Dashboard");
     return <Navigate to="/dashboard" replace />;
   }
 
@@ -88,7 +90,15 @@ export default function AppRoutes() {
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/profile" element={<ProfileSettings />} />
         <Route path="/admin/department" element={<Department />} />
-
+        <Route path="/admin/member" element={<MemberManagerPage />} />
+        <Route
+          path="/admin/members/:id"
+          element={
+            
+              <MemberDetailPage />
+            
+          }
+        />
         {/* Trang Admin (Được bảo vệ 2 lớp) */}
         <Route
           path="/admin/settings"

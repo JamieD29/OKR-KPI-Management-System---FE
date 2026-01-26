@@ -18,6 +18,7 @@ import {
   BookOpen,
   HelpCircle,
   GraduationCap,
+  User,
 } from 'lucide-react';
 
 const drawerWidth = 280;
@@ -41,6 +42,11 @@ export default function Sidebar({ mobileOpen, onClose }: SidebarProps) {
       text: 'Departments',
       icon: <Building2 size={20} />,
       path: '/admin/department',
+    },
+    {
+      text: 'Members',
+      icon: <User size={20} />,
+      path: '/admin/member',
     },
     { text: 'Research & Docs', icon: <BookOpen size={20} />, path: '/docs' },
   ];
