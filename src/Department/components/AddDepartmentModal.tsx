@@ -1,132 +1,106 @@
-import React, { useState } from "react";
-import { X } from "lucide-react";
-import type { Department, DepartmentLevel } from "../../../types/models";
+import React, { useState } from 'react';
+import {
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+  Button,
+  Stack,
+  Alert,
+} from '@mui/material';
+import { api } from '../../services/api'; // ⚠️ Check đường dẫn api
 
 interface AddDepartmentModalProps {
-  isOpen: boolean;
+  open: boolean;
   onClose: () => void;
-  onAdd: (department: Omit<Department, "id">) => void; // Không cần ID vì sẽ tự sinh
-  parentDept: Department | null; // Để biết đang thêm vào đâu
+  onSuccess: () => void; // Hàm gọi lại khi thêm thành công để reload list
 }
 
-export const AddDepartmentModal: React.FC<AddDepartmentModalProps> = ({
-  isOpen,
+export default function AddDepartmentModal({
+  open,
   onClose,
-  onAdd,
-  parentDept,
-}) => {
-  const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
+  onSuccess,
+}: AddDepartmentModalProps) {
+  const [formData, setFormData] = useState({
+    name: '',
+    code: '',
+    description: '',
+  });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
-  if (!isOpen) return null;
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
 
-  // Tính toán cấp độ (Level) tự động
-  // Nếu không có cha (parentDept == null) -> Level 1
-  // Nếu cha là Level 1 -> Con là Level 2...
-  const nextLevel = parentDept
-    ? ((parentDept.level + 1) as DepartmentLevel)
-    : 1;
-  const parentName = parentDept ? parentDept.name : "Cấp cao nhất (Gốc)";
+  const handleSubmit = async () => {
+    // Validate cơ bản
+    if (!formData.name || !formData.code) {
+      setError('Tên và Mã bộ môn là bắt buộc');
+      return;
+    }
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!name.trim()) return;
-
-    // Gửi dữ liệu ra ngoài
-    onAdd({
-      name,
-      level: nextLevel,
-      parentId: parentDept ? parentDept.id : null,
-    });
-
-    // Reset form
-    setName("");
-    setDescription("");
-    onClose();
+    setLoading(true);
+    setError('');
+    try {
+      await api.post('/departments', formData);
+      setFormData({ name: '', code: '', description: '' }); // Reset form
+      onSuccess(); // Báo cho cha biết là xong rồi
+      onClose(); // Đóng modal
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Có lỗi xảy ra');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      {/* Overlay làm tối nền */}
-      <div
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm transition-opacity"
-        onClick={onClose}
-      ></div>
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
+      <DialogTitle sx={{ fontWeight: 'bold', color: '#1e3a8a' }}>
+        Thêm Bộ Môn Mới
+      </DialogTitle>
+      <DialogContent dividers>
+        <Stack spacing={2} sx={{ mt: 1 }}>
+          {error && <Alert severity="error">{error}</Alert>}
 
-      {/* Modal Content */}
-      <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden transform transition-all scale-100">
-        {/* Header */}
-        <div className="bg-gray-50 px-6 py-4 border-b border-gray-100 flex justify-between items-center">
-          <h3 className="text-lg font-bold text-gray-800">Thêm đơn vị mới</h3>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600"
-          >
-            <X size={20} />
-          </button>
-        </div>
-
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          {/* Thông báo đang thêm vào đâu */}
-          <div className="p-3 bg-blue-50 text-blue-800 rounded-lg text-sm flex flex-col">
-            <span className="text-xs font-semibold text-blue-600 uppercase">
-              Đơn vị trực thuộc:
-            </span>
-            <span className="font-medium truncate">{parentName}</span>
-            <span className="text-xs text-blue-500 mt-1">
-              Hệ thống sẽ tạo đơn vị này ở <b>Level {nextLevel}</b>
-            </span>
-          </div>
-
-          {/* Input Tên */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Tên đơn vị <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
-              placeholder="Ví dụ: Bộ môn Kỹ thuật phần mềm"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              autoFocus
-              required
-            />
-          </div>
-
-          {/* Input Mô tả */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Mô tả (Tùy chọn)
-            </label>
-            <textarea
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
-              rows={3}
-              placeholder="Mô tả chức năng, nhiệm vụ..."
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-            />
-          </div>
-
-          {/* Footer Buttons */}
-          <div className="flex justify-end gap-3 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 font-medium transition-colors"
-            >
-              Hủy bỏ
-            </button>
-            <button
-              type="submit"
-              className="px-4 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700 font-medium shadow-md hover:shadow-lg transition-all"
-            >
-              Tạo mới
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+          <TextField
+            label="Tên bộ môn"
+            name="name"
+            required
+            fullWidth
+            value={formData.name}
+            onChange={handleChange}
+            placeholder="Ví dụ: Công nghệ phần mềm"
+          />
+          <TextField
+            label="Mã bộ môn (Code)"
+            name="code"
+            required
+            fullWidth
+            value={formData.code}
+            onChange={handleChange}
+            placeholder="Ví dụ: SE, IT, CS..."
+          />
+          <TextField
+            label="Mô tả"
+            name="description"
+            fullWidth
+            multiline
+            rows={3}
+            value={formData.description}
+            onChange={handleChange}
+          />
+        </Stack>
+      </DialogContent>
+      <DialogActions sx={{ p: 2 }}>
+        <Button onClick={onClose} color="inherit">
+          Hủy
+        </Button>
+        <Button onClick={handleSubmit} variant="contained" disabled={loading}>
+          {loading ? 'Đang tạo...' : 'Tạo mới'}
+        </Button>
+      </DialogActions>
+    </Dialog>
   );
-};
+}

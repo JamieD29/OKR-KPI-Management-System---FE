@@ -1,116 +1,205 @@
-import { useState } from "react";
-import type { Department, User } from "../types/index";
-import { MOCK_DEPARTMENTS, MOCK_USERS } from "../mocks/mockData";
+import React, { useEffect, useState } from 'react';
+import {
+  Box,
+  Typography,
+  Button,
+  Grid,
+  Card,
+  CardContent,
+  CardActions,
+  IconButton,
+  Tooltip,
+  Chip,
+  CircularProgress,
+  Container,
+} from '@mui/material';
+import { Add, Delete, Edit, Groups } from '@mui/icons-material';
+import { api } from '../services/api';
+import AddDepartmentModal from './components/AddDepartmentModal';
 
-import { Breadcrumb } from "./components/Breadcrumb";
-import { DepartmentGrid } from "./components/DepartmentGrid";
-import { MemberTable } from "./components/MemberTable";
-import { MemberDetailModal } from "./components/MemberDetailModal";
-import { AddDepartmentModal } from './components/AddDepartmentModal';
- // Import Modal mới
-const DepartmentManagerPage = () => {
-  const [departments, setDepartments] =
-    useState<Department[]>(MOCK_DEPARTMENTS);
-  const [navPath, setNavPath] = useState<Department[]>([]);
-  const [selectedMember, setSelectedMember] = useState<User | null>(null);
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+// Interface dữ liệu
+interface Department {
+  id: string;
+  name: string;
+  code: string;
+  description: string;
+  memberCount?: number; // Trường mới thêm từ Backend
+}
 
-  const currentDept = navPath.length > 0 ? navPath[navPath.length - 1] : null;
+export default function DepartmentPage() {
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [openAddModal, setOpenAddModal] = useState(false);
 
-  // Lọc danh sách hiển thị từ State (không phải từ Mock trực tiếp nữa)
-  const displayDepartments = departments.filter((d) =>
-    currentDept ? d.parentId === currentDept.id : d.level === 1,
-  );
-
-  const displayMembers =
-    currentDept?.level === 3
-      ? MOCK_USERS.filter((m) => m.department?.id === currentDept.id)
-      : [];
-
-  const handleBreadcrumbClick = (dept: Department | null) => {
-    if (!dept) {
-      setNavPath([]);
-    } else {
-      const index = navPath.findIndex((d) => d.id === dept.id);
-      setNavPath(navPath.slice(0, index + 1));
+  // Hàm load dữ liệu
+  const fetchDepartments = async () => {
+    setLoading(true);
+    try {
+      const res = await api.get('/departments');
+      setDepartments(res.data);
+    } catch (error) {
+      console.error('Lỗi tải danh sách:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleDeptClick = (dept: Department) => {
-    setNavPath([...navPath, dept]);
-  };
+  useEffect(() => {
+    fetchDepartments();
+  }, []);
 
-  const handleAddDepartment = (newDeptData: Omit<Department, "id">) => {
-    const newDepartment: Department = {
-      ...newDeptData,
-      id: `new_${Date.now()}`, // Tạo ID giả
-    };
-
-    // Cập nhật State danh sách
-    setDepartments([...departments, newDepartment]);
-
-    // (Thực tế chỗ này bạn sẽ gọi API: await departmentService.create(newDepartment))
+  // Hàm xóa
+  const handleDelete = async (id: string, name: string) => {
+    if (
+      window.confirm(
+        `Bạn có chắc muốn xóa bộ môn "${name}"? Hành động này không thể hoàn tác!`,
+      )
+    ) {
+      try {
+        await api.delete(`/departments/${id}`);
+        fetchDepartments(); // Load lại list sau khi xóa
+      } catch (error) {
+        alert('Xóa thất bại (Có thể bộ môn này đang có thành viên)');
+      }
+    }
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 text-gray-900 font-sans">
-      {/* Header Container */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Title Section */}
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold text-gray-900">
-            Quản lý cơ cấu tổ chức
-          </h1>
-          <p className="mt-2 text-sm text-gray-600">
-            Hệ thống quản lý: Khoa &gt; Bộ môn &gt; Tổ/Nhóm &gt; Thành viên
-          </p>
-        </div>
+    <Container maxWidth="xl" sx={{ py: 4 }}>
+      {/* HEADER */}
+      <Box
+        sx={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          mb: 4,
+          alignItems: 'center',
+        }}
+      >
+        <Box>
+          <Typography variant="h4" fontWeight="bold" color="#1e3a8a">
+            Quản lý Bộ môn
+          </Typography>
+          <Typography variant="body1" color="text.secondary">
+            Danh sách các bộ môn và đơn vị trực thuộc
+          </Typography>
+        </Box>
+        <Button
+          variant="contained"
+          startIcon={<Add />}
+          onClick={() => setOpenAddModal(true)}
+          sx={{ borderRadius: 2, textTransform: 'none', px: 3 }}
+        >
+          Thêm bộ môn
+        </Button>
+      </Box>
 
-        {/* Navigation Breadcrumb */}
-        <div className="mb-6">
-          <Breadcrumb path={navPath} onNavigate={handleBreadcrumbClick} />
-        </div>
+      {/* DANH SÁCH (GRID) */}
+      {loading ? (
+        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 5 }}>
+          <CircularProgress />
+        </Box>
+      ) : departments.length === 0 ? (
+        <Typography align="center" sx={{ mt: 5, color: 'text.secondary' }}>
+          Chưa có bộ môn nào.
+        </Typography>
+      ) : (
+        <Grid container spacing={3}>
+          {departments.map((dept) => (
+            <Grid size={{ xs: 12, sm: 6, md: 4, lg: 3 }} key={dept.id}>
+              <Card
+                elevation={0}
+                sx={{
+                  border: '1px solid #e2e8f0',
+                  borderRadius: 3,
+                  transition: '0.3s',
+                  '&:hover': {
+                    boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
+                    transform: 'translateY(-4px)',
+                  },
+                }}
+              >
+                <CardContent>
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      mb: 1,
+                    }}
+                  >
+                    <Chip
+                      label={dept.code}
+                      color="primary"
+                      size="small"
+                      variant="filled"
+                    />
+                    {/* Menu Edit/Delete sẽ nằm đây */}
+                  </Box>
 
-        {/* Main Content Area - Card trắng nền */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 min-h-[500px]">
-          {/* Case 1: Hiển thị Folder (Level 1, 2) */}
-          {(!currentDept || currentDept.level < 3) && (
-            <DepartmentGrid
-              departments={displayDepartments}
-              currentDept={currentDept}
-              onSelect={handleDeptClick}
-              onAddClick={() => setIsAddModalOpen(true)}
-            />
-          )}
+                  <Typography
+                    variant="h6"
+                    fontWeight="bold"
+                    noWrap
+                    title={dept.name}
+                  >
+                    {dept.name}
+                  </Typography>
 
-          {/* Case 2: Hiển thị Bảng thành viên (Level 3) */}
-          {currentDept?.level === 3 && (
-            <MemberTable
-              members={displayMembers}
-              departmentName={currentDept.name}
-              onSelectMember={setSelectedMember}
-            />
-          )}
-        </div>
-      </div>
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{ mb: 2, height: 40, overflow: 'hidden' }}
+                  >
+                    {dept.description || 'Chưa có mô tả'}
+                  </Typography>
 
-      {/* Modal */}
-      {selectedMember && (
-        <MemberDetailModal
-          member={selectedMember}
-          onClose={() => setSelectedMember(null)}
-        />
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 1,
+                      color: 'text.secondary',
+                      fontSize: '0.875rem',
+                    }}
+                  >
+                    <Groups fontSize="small" />
+                    <span>{dept.memberCount || 0} thành viên</span>
+                  </Box>
+                </CardContent>
+
+                <CardActions
+                  sx={{
+                    borderTop: '1px solid #f1f5f9',
+                    justifyContent: 'flex-end',
+                    px: 2,
+                  }}
+                >
+                  <Tooltip title="Chỉnh sửa (Sắp có)">
+                    <IconButton size="small">
+                      <Edit fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                  <Tooltip title="Xóa bộ môn">
+                    <IconButton
+                      size="small"
+                      color="error"
+                      onClick={() => handleDelete(dept.id, dept.name)}
+                    >
+                      <Delete fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                </CardActions>
+              </Card>
+            </Grid>
+          ))}
+        </Grid>
       )}
 
-      {/* Modal Thêm Đơn vị mới (Đã kết nối) */}
+      {/* MODAL THÊM MỚI */}
       <AddDepartmentModal
-        isOpen={isAddModalOpen}
-        onClose={() => setIsAddModalOpen(false)}
-        onAdd={handleAddDepartment}
-        parentDept={currentDept} // Truyền vị trí hiện tại vào để biết cha là ai
+        open={openAddModal}
+        onClose={() => setOpenAddModal(false)}
+        onSuccess={fetchDepartments}
       />
-    </div>
+    </Container>
   );
-};;
-
-export default DepartmentManagerPage;
+}

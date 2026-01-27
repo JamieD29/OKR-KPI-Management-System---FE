@@ -19,7 +19,6 @@ import {
   IconButton,
   Tooltip,
 } from '@mui/material';
-// 👇 IMPORT GRID2 RIÊNG (Đây là điểm mấu chốt)
 import Grid from '@mui/material/Grid';
 
 import {
@@ -27,10 +26,10 @@ import {
   VerifiedUser,
   School,
   Work,
-  Badge,
   Edit,
   Cancel,
   CameraAlt,
+  Badge,
 } from '@mui/icons-material';
 import { api } from '../services/api';
 
@@ -58,6 +57,9 @@ export default function ProfileSetting() {
     message: string;
   } | null>(null);
 
+  // 👇 STATE MỚI: Chứa danh sách bộ môn từ API
+  const [departments, setDepartments] = useState<any[]>([]);
+
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -70,17 +72,34 @@ export default function ProfileSetting() {
     intellectualProperty: '',
     joinDate: '',
     gender: 'Nam',
-    departmentID: '',
+    departmentID: '', // ID bộ môn đang chọn
+    staffCode: '',
   });
 
   const [originalData, setOriginalData] = useState<any>(null);
 
   useEffect(() => {
-    fetchProfile();
+    // Gọi cả 2 API cùng lúc khi vào trang
+    const initData = async () => {
+      setLoading(true);
+      try {
+        // 1. Lấy danh sách Departments trước
+        const deptRes = await api.get('/departments');
+        setDepartments(deptRes.data);
+
+        // 2. Lấy Profile User
+        await fetchProfile();
+      } catch (error) {
+        console.error('Lỗi khởi tạo:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    initData();
   }, []);
 
   const fetchProfile = async () => {
-    setLoading(true);
     try {
       const res = await api.get('/users/profile');
       const u = res.data;
@@ -97,7 +116,9 @@ export default function ProfileSetting() {
         intellectualProperty: u.intellectualProperty || '',
         joinDate: u.joinDate ? u.joinDate.split('T')[0] : '',
         gender: u.gender || 'Nam',
-        departmentID: u.department ? u.department.id : '', // Lấy ID từ object department
+        // 👇 Quan trọng: Map ID từ object department về state
+        departmentID: u.department ? u.department.id : '',
+        staffCode: u.staffCode || '',
       };
 
       setFormData(mappedData);
@@ -108,8 +129,6 @@ export default function ProfileSetting() {
         type: 'error',
         message: 'Không thể tải thông tin cá nhân.',
       });
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -130,6 +149,7 @@ export default function ProfileSetting() {
   const handleSave = async () => {
     setSaving(true);
     try {
+      // 👇 Payload gửi đi: Nhớ kèm departmentId
       const payload = {
         name: formData.name,
         jobTitle: formData.jobTitle,
@@ -139,6 +159,9 @@ export default function ProfileSetting() {
         awards: formData.awards,
         intellectualProperty: formData.intellectualProperty,
         joinDate: formData.joinDate,
+        gender: formData.gender,
+        departmentId: formData.departmentID, // Map đúng key DTO backend yêu cầu
+        staffCode: formData.staffCode,
       };
 
       await api.patch('/users/profile', payload);
@@ -150,6 +173,7 @@ export default function ProfileSetting() {
       setOriginalData(formData);
       setIsEditing(false);
 
+      // Cập nhật session storage để Header hiển thị tên mới nếu có đổi tên
       const userStr = sessionStorage.getItem('user');
       if (userStr) {
         const user = JSON.parse(userStr);
@@ -237,10 +261,8 @@ export default function ProfileSetting() {
         </Alert>
       </Snackbar>
 
-      {/* --- GRID 2 BẮT ĐẦU TỪ ĐÂY --- */}
       <Grid container spacing={3}>
         {/* CỘT TRÁI: IDENTITY CARD */}
-        {/* Thay item xs={12} md={4} bằng size={{ xs: 12, md: 4 }} */}
         <Grid size={{ xs: 12, md: 4 }}>
           <Card
             variant="outlined"
@@ -353,7 +375,6 @@ export default function ProfileSetting() {
         </Grid>
 
         {/* CỘT PHẢI: FORM CHI TIẾT */}
-        {/* Thay item xs={12} md={8} bằng size={{ xs: 12, md: 8 }} */}
         <Grid size={{ xs: 12, md: 8 }}>
           <Card
             variant="outlined"
@@ -387,6 +408,19 @@ export default function ProfileSetting() {
                 </Grid>
 
                 <Grid size={{ xs: 12, sm: 6 }}>
+                  <TextField
+                    fullWidth
+                    label="Mã cán bộ (Staff ID)"
+                    placeholder="Ví dụ: VNU12345"
+                    value={formData.staffCode}
+                    onChange={(e) => handleChange('staffCode', e.target.value)}
+                    disabled={!isEditing} // Chỉ cho sửa khi bấm Edit
+                    variant={isEditing ? 'outlined' : 'filled'}
+                    helperText="Mã định danh duy nhất của giảng viên"
+                  />
+                </Grid>
+
+                <Grid size={{ xs: 12, sm: 6 }}>
                   <FormControl
                     fullWidth
                     variant={isEditing ? 'outlined' : 'filled'}
@@ -406,6 +440,36 @@ export default function ProfileSetting() {
                     </Select>
                   </FormControl>
                 </Grid>
+
+                {/* 👇 KHU VỰC BỘ MÔN MỚI THÊM VÀO ĐÂY */}
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <FormControl
+                    fullWidth
+                    variant={isEditing ? 'outlined' : 'filled'}
+                  >
+                    <InputLabel>Bộ môn</InputLabel>
+                    <Select
+                      value={formData.departmentID || ''}
+                      label="Bộ môn"
+                      onChange={(e) =>
+                        handleChange('departmentID', e.target.value)
+                      }
+                      disabled={!isEditing}
+                    >
+                      {/* Render từ State departments lấy từ API */}
+                      <MenuItem value="">
+                        <em>Chưa chọn</em>
+                      </MenuItem>
+                      {departments.map((dept) => (
+                        <MenuItem key={dept.id} value={dept.id}>
+                          {dept.name}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Grid>
+                {/* 👆 HẾT KHU VỰC BỘ MÔN */}
+
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <TextField
                     fullWidth
@@ -462,7 +526,6 @@ export default function ProfileSetting() {
                   </FormControl>
                 </Grid>
 
-                {/* --- GIỚI TÍNH --- */}
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <FormControl
                     fullWidth

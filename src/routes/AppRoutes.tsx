@@ -78,10 +78,9 @@ export default function AppRoutes() {
       {/* --- MAIN LAYOUT GROUP --- */}
       <Route
         element={
-          // <ProtectedRoute>
-          //   <MainLayout />
-          // </ProtectedRoute>
-          <MainLayout />
+          <ProtectedRoute>
+            <MainLayout />
+          </ProtectedRoute>
         }
       >
         {/* Các trang User thường */}
