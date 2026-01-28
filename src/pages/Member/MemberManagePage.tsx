@@ -13,8 +13,6 @@ import {
   ChevronRight,
   ArrowUpDown,
 } from "lucide-react";
-import { MOCK_USERS, MOCK_DEPARTMENTS } from "../../mocks/mockData";
-import type { User } from "../../types/index";
 import { AddMemberModal } from "./components/AddMemberModal";
 
 // Định nghĩa độ ưu tiên cho Role để sắp xếp (Số càng nhỏ càng ưu tiên)

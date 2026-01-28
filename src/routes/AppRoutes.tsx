@@ -6,7 +6,7 @@ import Login from '../pages/Login';
 import Dashboard from '../pages/Dashboard';
 import AdminSettings from '../pages/AdminSetting';
 import ProfileSettings from '../pages/ProfileSetting';
-import Department from '../Department/Department';
+import Department from '../pages/Department/Department';
 import AuthCallback from '../pages/AuthCallback'; // Import thêm
 import AcceptInvitation from '../components/AcceptInvitation'; // Import thêm
 

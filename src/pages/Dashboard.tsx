@@ -1,13 +1,13 @@
-import React, { useState, useEffect } from 'react';
-import { Box, Typography, Grid } from '@mui/material';
-import { Target, TrendingUp, Users, Calendar } from 'lucide-react';
-import StatCard from '../components/StatCard';
+import React, { useState, useEffect } from "react";
+import { Box, Typography, Grid } from "@mui/material";
+import { Target, TrendingUp, Users, Calendar } from "lucide-react";
+import StatCard from "../components/StatCard";
 // Interfaces (Giữ nguyên)
 interface OKRData {
   id: string;
   title: string;
   progress: number;
-  status: 'on-track' | 'at-risk' | 'behind';
+  status: "on-track" | "at-risk" | "behind";
   dueDate: string;
 }
 interface KPIData {
@@ -21,42 +21,42 @@ interface KPIData {
 export default function Dashboard() {
   const [okrs, setOkrs] = useState<OKRData[]>([]);
   const [kpis, setKpis] = useState<KPIData[]>([]);
-  const user = JSON.parse(sessionStorage.getItem('user') || '{}');
+  const user = JSON.parse(sessionStorage.getItem("user") || "{}");
 
   useEffect(() => {
     // Giả lập fetch data
     setOkrs([
       {
-        id: '1',
-        title: 'Increase Q4 Revenue',
+        id: "1",
+        title: "Increase Q4 Revenue",
         progress: 75,
-        status: 'on-track',
-        dueDate: '2025-12-31',
+        status: "on-track",
+        dueDate: "2025-12-31",
       },
       {
-        id: '2',
-        title: 'Launch Mobile App',
+        id: "2",
+        title: "Launch Mobile App",
         progress: 40,
-        status: 'at-risk',
-        dueDate: '2025-11-20',
+        status: "at-risk",
+        dueDate: "2025-11-20",
       },
     ]);
     setKpis([
-      { id: '1', name: 'New Leads', current: 450, target: 500, unit: 'leads' },
-      { id: '2', name: 'Customer Churn', current: 2.5, target: 5, unit: '%' },
+      { id: "1", name: "New Leads", current: 450, target: 500, unit: "leads" },
+      { id: "2", name: "Customer Churn", current: 2.5, target: 5, unit: "%" },
     ]);
   }, []);
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'on-track':
-        return 'success';
-      case 'at-risk':
-        return 'warning';
-      case 'behind':
-        return 'error';
+      case "on-track":
+        return "success";
+      case "at-risk":
+        return "warning";
+      case "behind":
+        return "error";
       default:
-        return 'primary';
+        return "primary";
     }
   };
 
@@ -64,8 +64,8 @@ export default function Dashboard() {
     <Box>
       {/* Welcome Section */}
       <Box sx={{ mb: 4 }}>
-        <Typography variant="h4" fontWeight="bold" sx={{ color: '#1e293b' }}>
-          Welcome back, {user?.name?.split(' ')[0]}! 👋
+        <Typography variant="h4" fontWeight="bold" sx={{ color: "#1e293b" }}>
+          Welcome back, {user?.name?.split(" ")[0]}! 👋
         </Typography>
         <Typography color="text.secondary">
           Academic Performance Overview
@@ -82,13 +82,13 @@ export default function Dashboard() {
         />
         <StatCard
           title="On Track"
-          value={okrs.filter((o) => o.status === 'on-track').length}
+          value={okrs.filter((o) => o.status === "on-track").length}
           icon={<TrendingUp size={24} color="#22c55e" />}
           bg="#f0fdf4"
         />
         <StatCard
           title="At Risk"
-          value={okrs.filter((o) => o.status === 'at-risk').length}
+          value={okrs.filter((o) => o.status === "at-risk").length}
           icon={<Calendar size={24} color="#f59e0b" />}
           bg="#fef3c7"
         />
