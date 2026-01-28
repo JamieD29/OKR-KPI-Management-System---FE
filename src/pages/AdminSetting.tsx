@@ -16,15 +16,54 @@ import {
   CircularProgress,
   Chip,
   Divider,
+  Paper,
+  ListItemButton,
+  ListItemIcon,
+  Container,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Avatar,
+  Tooltip,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
 } from '@mui/material';
-import { Add, Delete, Info } from '@mui/icons-material';
-import { api } from '../services/api';
-import type { Domain } from '../types';
 
-export default function AdminSettings() {
-  const navigate = useNavigate();
+// Tách import Type
+import type { SelectChangeEvent } from '@mui/material';
+
+import {
+  Dns,
+  People,
+  History,
+  AdminPanelSettings,
+  Add,
+  Delete,
+  Info,
+  Edit,
+  ArrowBack,
+} from '@mui/icons-material';
+
+import { api } from '../services/api';
+// Vì user.roles bây giờ có thể là Object, ta dùng any hoặc sửa Type User sau.
+// Tạm thời frontend xử lý linh hoạt.
+import type { Domain, User } from '../types';
+
+// ==========================================
+// 1. COMPONENT: WHITELIST MANAGER (Giữ nguyên)
+// ==========================================
+const WhitelistManager = () => {
   const [domains, setDomains] = useState<Domain[]>([]);
-  const [domainInput, setDomainInput] = useState(''); // Đổi tên biến để nhập Full Domain
+  const [domainInput, setDomainInput] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState<{
@@ -33,104 +72,18 @@ export default function AdminSettings() {
   } | null>(null);
 
   useEffect(() => {
-    const userInfo = sessionStorage.getItem('user');
-    // --- GIỮ LẠI LOGIC CHECK QUYỀN "XỊN" ---
-    if (userInfo) {
-      const user = JSON.parse(userInfo);
-      const roles = user.roles || [];
-      const isAdmin =
-        roles.includes('SYSTEM_ADMIN') ||
-        roles.includes('admin') ||
-        user.role === 'admin';
-
-      if (!isAdmin) {
-        navigate('/dashboard', { replace: true });
-        return;
-      }
-    } else {
-      navigate('/login', { replace: true });
-      return;
-    }
-    // ----------------------------------------
     fetchDomains();
-  }, [navigate]);
+  }, []);
 
   const fetchDomains = async () => {
     try {
-      const response = await api.get<{ domains: Domain[] }>('/admin/domains');
-      setDomains(response.data.domains);
-    } catch (err: any) {
+      const response = await api.get('/admin/domains');
+      const data = response.data?.domains || response.data || [];
+      setDomains(Array.isArray(data) ? data : []);
+    } catch (err) {
       console.error(err);
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const handleAddDomain = async () => {
-    // 1. Logic mới: Nhập full domain -> Trim -> Lowercase
-    const rawDomain = domainInput.trim().toLowerCase();
-
-    if (!rawDomain) {
-      showMessage('error', 'Please enter a domain');
-      return;
-    }
-
-    // 2. Validate Đa năng (Regex mới)
-    // Chấp nhận: gmail.com, fit.hcmus.edu.vn, abc.xyz
-    const domainRegex =
-      /^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9][a-z0-9-]{0,61}[a-z0-9]$/;
-
-    if (!domainRegex.test(rawDomain)) {
-      showMessage(
-        'error',
-        'Invalid domain format. Example: gmail.com, fit/itec.hcmus.edu.vn',
-      );
-      return;
-    }
-
-    // 3. Check trùng (So sánh full domain)
-    if (domains.some((d) => d.domain.toLowerCase() === rawDomain)) {
-      showMessage('error', 'This domain is already in the allowlist');
-      return;
-    }
-
-    setIsSaving(true);
-    try {
-      const response = await api.post<{ domain: Domain }>('/admin/domains', {
-        domain: rawDomain,
-      });
-      setDomains([...domains, response.data.domain]); // Thêm xuống cuối hoặc đầu tùy mày
-      setDomainInput(''); // Clear input
-      showMessage('success', `Domain ${rawDomain} added successfully`);
-    } catch (err: any) {
-      const errorMessage =
-        err.response?.data?.message || 'Failed to add domain';
-      showMessage('error', errorMessage);
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const handleDeleteDomain = async (domainId: string) => {
-    if (
-      !window.confirm(
-        'Are you sure you want to remove this domain? Users with this domain will no longer be able to log in.',
-      )
-    ) {
-      return;
-    }
-
-    setIsSaving(true);
-    try {
-      await api.delete(`/admin/domains/${domainId}`);
-      setDomains(domains.filter((d) => d.id !== domainId));
-      showMessage('success', 'Domain removed successfully');
-    } catch (err: any) {
-      const errorMessage =
-        err.response?.data?.message || 'Failed to remove domain';
-      showMessage('error', errorMessage);
-    } finally {
-      setIsSaving(false);
     }
   };
 
@@ -139,215 +92,513 @@ export default function AdminSettings() {
     setTimeout(() => setMessage(null), 5000);
   };
 
-  if (isLoading) {
+  const handleAddDomain = async () => {
+    const rawDomain = domainInput.trim().toLowerCase();
+    if (!rawDomain) return showMessage('error', 'Please enter a domain');
+
+    const domainRegex =
+      /^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9][a-z0-9-]{0,61}[a-z0-9]$/;
+    if (!domainRegex.test(rawDomain))
+      return showMessage('error', 'Invalid domain format');
+
+    if (domains.some((d) => d.domain.toLowerCase() === rawDomain)) {
+      return showMessage('error', 'Domain already exists');
+    }
+
+    setIsSaving(true);
+    try {
+      const response = await api.post('/admin/domains', { domain: rawDomain });
+      const newDomain = response.data?.domain || response.data;
+      setDomains([...domains, newDomain]);
+      setDomainInput('');
+      showMessage('success', `Added @${rawDomain}`);
+    } catch (err: any) {
+      showMessage('error', err.response?.data?.message || 'Failed to add');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleDeleteDomain = async (id: string) => {
+    if (!window.confirm('Remove this domain? Users will lose access.')) return;
+    setIsSaving(true);
+    try {
+      await api.delete(`/admin/domains/${id}`);
+      setDomains(domains.filter((d) => d.id !== id));
+      showMessage('success', 'Domain removed');
+    } catch (err: any) {
+      showMessage('error', err.response?.data?.message || 'Failed to delete');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  if (isLoading)
     return (
-      <Box
-        sx={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          minHeight: '100vh',
-          gap: 2,
-        }}
-      >
+      <Box sx={{ display: 'flex', justifyContent: 'center', p: 5 }}>
         <CircularProgress />
-        <Typography color="text.secondary">Loading settings...</Typography>
       </Box>
     );
-  }
 
   return (
-    <Box sx={{ minHeight: '100vh', bgcolor: 'grey.50' }}>
-      {/* Header Giữ nguyên */}
-      {/* Header dạng Breadcrumb - Gọn gàng & Chuyên nghiệp hơn */}
-      <Box
-        sx={{
-          bgcolor: 'white',
-          borderBottom: 1,
-          borderColor: 'divider',
-          py: 2,
-          px: 3,
-        }}
-      >
-        <Box sx={{ maxWidth: 1200, mx: 'auto' }}>
-          {/* Dòng đường dẫn nhỏ bên trên */}
+    <Box>
+      {message && (
+        <Alert
+          severity={message.type}
+          onClose={() => setMessage(null)}
+          sx={{ mb: 3 }}
+        >
+          {message.text}
+        </Alert>
+      )}
+
+      <Card sx={{ mb: 3, boxShadow: 'none', border: '1px solid #e2e8f0' }}>
+        <CardContent sx={{ p: 3 }}>
+          <Typography variant="h6" fontWeight={600} gutterBottom>
+            Allowed Email Domains
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+            Add email domains that are authorized to access the system.
+          </Typography>
+
           <Box
-            sx={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 1,
-              mb: 0.5,
-              color: 'text.secondary',
-              fontSize: '0.875rem',
-            }}
+            sx={{ mb: 3, display: 'flex', gap: 2, alignItems: 'flex-start' }}
           >
-            <Typography
-              component="span"
+            <TextField
+              fullWidth
+              size="small"
+              placeholder="example.com"
+              value={domainInput}
+              onChange={(e) => setDomainInput(e.target.value.toLowerCase())}
+              helperText="Only lowercase letters, numbers, hyphens allowed"
+              disabled={isSaving}
               sx={{
-                cursor: 'pointer',
-                '&:hover': { textDecoration: 'underline' },
+                '& .MuiFormHelperText-root': { marginLeft: 0, marginTop: 1 },
               }}
-              onClick={() => navigate('/dashboard')}
+            />
+
+            <Button
+              variant="contained"
+              onClick={handleAddDomain}
+              disabled={isSaving || !domainInput.trim()}
+              size="small"
+              startIcon={!isSaving && <Add />}
+              sx={{
+                minWidth: 100,
+                height: 40,
+                whiteSpace: 'nowrap',
+                mt: '1px',
+              }}
             >
-              Dashboard
-            </Typography>
-            <span>/</span>
-            <Typography component="span" color="text.primary" fontWeight={500}>
-              Administration
-            </Typography>
+              {isSaving ? (
+                <CircularProgress size={20} color="inherit" />
+              ) : (
+                'ADD'
+              )}
+            </Button>
           </Box>
 
-          {/* Tiêu đề chính */}
-          <Typography variant="h4" fontWeight="bold" color="#111827">
-            Admin Settings
-          </Typography>
-        </Box>
-      </Box>
+          <Box sx={{ mt: 1 }} />
 
-      {/* Main Content Giữ nguyên layout */}
-      <Box sx={{ maxWidth: 1200, mx: 'auto', p: 3 }}>
-        {message && (
-          <Alert
-            severity={message.type}
-            onClose={() => setMessage(null)}
-            sx={{ mb: 3 }}
+          <List
+            sx={{
+              bgcolor: 'grey.50',
+              borderRadius: 1,
+              border: '1px solid #f1f5f9',
+            }}
           >
-            {message.text}
-          </Alert>
-        )}
-
-        <Card sx={{ mb: 3 }}>
-          <CardContent sx={{ p: 3 }}>
-            <Typography variant="h6" fontWeight={600} gutterBottom>
-              Allowed Email Domains
-            </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-              Add email domains that are authorized to access the system.
-            </Typography>
-
-            {/* UI Nhập Domain (Đã bỏ cái đuôi cứng .hcmus.edu.vn) */}
-            <Box sx={{ mb: 3 }}>
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                Enter full domain (e.g., <strong>gmail.com</strong>,{' '}
-                <strong>fit/itec.hcmus.edu.vn</strong>)
-              </Typography>
-              <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
-                <TextField
-                  fullWidth
-                  placeholder="example.com"
-                  value={domainInput}
-                  onChange={(e) => setDomainInput(e.target.value.toLowerCase())}
-                  onKeyPress={(e) => {
-                    if (e.key === 'Enter') {
-                      handleAddDomain();
-                    }
-                  }}
-                  disabled={isSaving}
-                  size="small"
-                  // 🔥 Đã xóa InputAdornment (cái đuôi cố định) để nhập tự do
-                  helperText={
-                    domainInput.trim()
-                      ? `Adding: @${domainInput.trim()}`
-                      : 'Only lowercase letters, numbers, hyphens and dots allowed'
+            {domains.map((d) => (
+              <ListItem key={d.id}>
+                <ListItemText
+                  primary={
+                    <Chip label={`@${d.domain}`} color="primary" size="small" />
                   }
+                  secondary={`Added: ${new Date(d.addedAt).toLocaleDateString()}`}
                 />
-                <Button
-                  variant="contained"
-                  onClick={handleAddDomain}
-                  disabled={isSaving || !domainInput.trim()}
-                  startIcon={
-                    isSaving ? <CircularProgress size={20} /> : <Add />
-                  }
-                  sx={{ minWidth: 140, height: 40 }}
-                >
-                  Add
-                </Button>
-              </Box>
-            </Box>
+                <ListItemSecondaryAction>
+                  <IconButton
+                    onClick={() => handleDeleteDomain(d.id)}
+                    color="error"
+                  >
+                    <Delete />
+                  </IconButton>
+                </ListItemSecondaryAction>
+              </ListItem>
+            ))}
+            {domains.length === 0 && (
+              <Typography
+                sx={{ p: 2, textAlign: 'center', color: 'text.secondary' }}
+              >
+                No domains configured.
+              </Typography>
+            )}
+          </List>
 
-            {/* List Domain (Giữ nguyên style xám) */}
-            {domains.length > 0 ? (
-              <List sx={{ bgcolor: 'grey.50', borderRadius: 1 }}>
-                {domains.map((domain, index) => (
-                  <React.Fragment key={domain.id || index}>
-                    <ListItem>
-                      <ListItemText
-                        primary={
-                          <Box
-                            sx={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: 1,
-                            }}
-                          >
-                            <Chip
-                              // 🔥 Hiển thị full domain luôn
-                              label={`@${domain.domain}`}
-                              color="primary"
-                              size="small"
-                              sx={{ fontWeight: 600 }}
-                            />
-                          </Box>
-                        }
-                        secondary={
-                          <Typography variant="caption" color="text.secondary">
-                            Added on{' '}
-                            {domain.addedAt
-                              ? new Date(domain.addedAt).toLocaleDateString()
-                              : 'N/A'}
-                          </Typography>
-                        }
-                      />
-                      <ListItemSecondaryAction>
-                        <IconButton
-                          edge="end"
-                          onClick={() => handleDeleteDomain(domain.id)}
-                          disabled={isSaving}
-                          color="error"
-                        >
-                          <Delete />
-                        </IconButton>
-                      </ListItemSecondaryAction>
-                    </ListItem>
-                    {index < domains.length - 1 && <Divider />}
-                  </React.Fragment>
-                ))}
-              </List>
+          <Alert severity="info" icon={<Info />} sx={{ mt: 3 }}>
+            <Typography variant="subtitle2" fontWeight={600} gutterBottom>
+              Domain Policy
+            </Typography>
+            <Typography variant="body2">
+              • You can add any valid domain (e.g. <strong>gmail.com</strong>,{' '}
+              <strong>abc.com</strong>)<br />
+              • Users with emails matching these domains will be allowed to log
+              in.
+              <br />• Removing a domain will immediately revoke access for those
+              users.
+            </Typography>
+          </Alert>
+        </CardContent>
+      </Card>
+    </Box>
+  );
+};
+
+// ==========================================
+// 2. COMPONENT: USER ROLE MANAGER (ĐÃ FIX LỖI OBJECT)
+// ==========================================
+const UserRoleManager = () => {
+  const [users, setUsers] = useState<User[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [roleDialogOpen, setRoleDialogOpen] = useState(false);
+  const [newRole, setNewRole] = useState('');
+
+  useEffect(() => {
+    api
+      .get('/users')
+      .then((res) =>
+        setUsers(Array.isArray(res.data) ? res.data : res.data.data || []),
+      )
+      .catch((err) => console.error(err))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const handleUpdateRole = async () => {
+    if (!selectedUser) return;
+    try {
+      await api.put(`/users/${selectedUser.id}/roles`, { roles: [newRole] });
+      // Cập nhật lại UI.
+      // Lưu ý: Backend trả về Object Role mới, nên để an toàn ta reload lại list
+      // hoặc fake object role để hiển thị tạm.
+      // Cách đơn giản nhất: Reload trang hoặc gọi lại fetchUsers, nhưng ở đây ta update tạm string.
+      setUsers(
+        users.map((u) => {
+          if (u.id !== selectedUser.id) return u;
+          // Hack UI: Cập nhật tạm thời roles dưới dạng object giả hoặc string để không phải reload
+          // Logic render bên dưới đã handle được cả 2 loại.
+          return { ...u, roles: [newRole] as any };
+        }),
+      );
+      setRoleDialogOpen(false);
+      alert('Role updated successfully');
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed update');
+    }
+  };
+
+  const getRoleColor = (role: string) => {
+    if (role === 'SUPER_ADMIN') return 'error';
+    if (role === 'SYSTEM_ADMIN') return 'warning';
+    if (role === 'DEAN') return 'primary';
+    return 'default';
+  };
+
+  return (
+    <Box>
+      <Typography variant="h6" fontWeight={600} gutterBottom>
+        User Role Management
+      </Typography>
+      <Alert severity="warning" sx={{ mb: 3 }}>
+        Only Super Admin can promote users.
+      </Alert>
+
+      <TableContainer component={Paper} variant="outlined">
+        <Table>
+          <TableHead sx={{ bgcolor: '#f8fafc' }}>
+            <TableRow>
+              <TableCell>User</TableCell>
+              <TableCell>Job</TableCell>
+              <TableCell>Role</TableCell>
+              <TableCell align="right">Action</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {loading ? (
+              <TableRow>
+                <TableCell colSpan={4} align="center">
+                  <CircularProgress />
+                </TableCell>
+              </TableRow>
             ) : (
-              <Box
+              users.map((user) => (
+                <TableRow key={user.id}>
+                  <TableCell>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                      <Avatar src={user.avatarUrl}>
+                        {user.name?.charAt(0)}
+                      </Avatar>
+                      <Box>
+                        <Typography variant="subtitle2">{user.name}</Typography>
+                        <Typography variant="caption">{user.email}</Typography>
+                      </Box>
+                    </Box>
+                  </TableCell>
+                  <TableCell>{user.jobTitle || 'N/A'}</TableCell>
+                  <TableCell>
+                    {user.roles.map((r: any) => {
+                      // 🔥 FIX QUAN TRỌNG: Check xem r là String hay Object
+                      const roleSlug =
+                        typeof r === 'string' ? r : r.slug || r.name;
+                      return (
+                        <Chip
+                          key={roleSlug} // Dùng slug làm key thay vì object
+                          label={roleSlug} // Render chuỗi text
+                          size="small"
+                          color={getRoleColor(roleSlug) as any}
+                          sx={{ mr: 0.5 }}
+                        />
+                      );
+                    })}
+                  </TableCell>
+                  <TableCell align="right">
+                    <Tooltip title="Edit Role">
+                      <IconButton
+                        size="small"
+                        onClick={() => {
+                          setSelectedUser(user);
+                          // 🔥 FIX LOGIC LẤY DEFAULT ROLE CHO DIALOG
+                          const firstRole = user.roles[0] as any;
+                          const roleSlug =
+                            typeof firstRole === 'string'
+                              ? firstRole
+                              : firstRole?.slug;
+                          setNewRole(roleSlug || 'USER');
+                          setRoleDialogOpen(true);
+                        }}
+                      >
+                        <Edit fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </TableContainer>
+
+      <Dialog open={roleDialogOpen} onClose={() => setRoleDialogOpen(false)}>
+        <DialogTitle>Edit Role: {selectedUser?.name}</DialogTitle>
+        <DialogContent sx={{ minWidth: 300, pt: 2 }}>
+          <FormControl fullWidth size="small">
+            <InputLabel>Role</InputLabel>
+            <Select
+              value={newRole}
+              label="Role"
+              onChange={(e: SelectChangeEvent) => setNewRole(e.target.value)}
+            >
+              <MenuItem value="USER">User</MenuItem>
+              <MenuItem value="DEAN">Dean</MenuItem>
+              <MenuItem value="SYSTEM_ADMIN">System Admin</MenuItem>
+              <MenuItem value="SUPER_ADMIN" sx={{ color: 'red' }}>
+                Super Admin
+              </MenuItem>
+            </Select>
+          </FormControl>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setRoleDialogOpen(false)}>Cancel</Button>
+          <Button variant="contained" onClick={handleUpdateRole}>
+            Save
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </Box>
+  );
+};
+
+// ==========================================
+// 3. MAIN PAGE: ADMIN SETTINGS
+// ==========================================
+export default function AdminSettings() {
+  const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState('whitelist');
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    const userInfo = sessionStorage.getItem('user');
+    if (userInfo) {
+      const user: User = JSON.parse(userInfo);
+
+      console.log('User Role Debug:', user.roles);
+
+      const rawRoles = Array.isArray(user.roles) ? user.roles : [];
+      // Normalize roles: Dù là String hay Object cũng đưa về String hết để check quyền
+      const normalizedRoles = rawRoles.map((r: any) =>
+        (typeof r === 'string' ? r : r?.slug || r?.name || '').toString(),
+      );
+
+      const checkSuper = normalizedRoles.includes('SUPER_ADMIN');
+      const checkAccess = normalizedRoles.some((r: string) =>
+        ['SYSTEM_ADMIN', 'SUPER_ADMIN', 'admin'].includes(r),
+      );
+
+      if (!checkAccess) {
+        navigate('/dashboard');
+        return;
+      }
+
+      setIsAdmin(true);
+      setIsSuperAdmin(checkSuper);
+    } else {
+      navigate('/login');
+    }
+  }, [navigate]);
+
+  if (!isAdmin) return null;
+
+  const menuItems = [
+    {
+      id: 'whitelist',
+      label: 'Whitelist Domain',
+      icon: <Dns />,
+      restricted: false,
+    },
+    { id: 'users', label: 'User Roles', icon: <People />, restricted: true },
+    { id: 'logs', label: 'System Logs', icon: <History />, restricted: true },
+  ];
+
+  const availableMenuItems = menuItems.filter(
+    (item) => !item.restricted || isSuperAdmin,
+  );
+  const shouldShowSidebar = isSuperAdmin || availableMenuItems.length > 1;
+
+  return (
+    <Box
+      sx={{
+        display: 'flex',
+        flexDirection: 'row',
+        width: '100%',
+        minHeight: '85vh',
+        bgcolor: '#f8fafc',
+        borderRadius: 2,
+        overflow: 'hidden',
+      }}
+    >
+      {/* 1. ADMIN SIDEBAR */}
+      {shouldShowSidebar && (
+        <Paper
+          elevation={0}
+          sx={{
+            width: 260,
+            flexShrink: 0,
+            borderRight: '1px solid #e2e8f0',
+            bgcolor: '#fff',
+            display: 'flex',
+            flexDirection: 'column',
+          }}
+        >
+          <Box sx={{ p: 3 }}>
+            <Box
+              sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 0.5 }}
+            >
+              <AdminPanelSettings color="primary" />
+              <Typography variant="subtitle1" fontWeight="bold" color="#1e3a8a">
+                Admin Portal
+              </Typography>
+            </Box>
+            <Typography variant="caption" color="text.secondary">
+              System Configuration
+            </Typography>
+          </Box>
+          <Divider />
+
+          <List sx={{ p: 2, flexGrow: 1 }}>
+            <ListItemButton
+              onClick={() => navigate('/dashboard')}
+              sx={{ mb: 2, borderRadius: 2, bgcolor: '#f1f5f9' }}
+            >
+              <ListItemIcon>
+                <ArrowBack fontSize="small" />
+              </ListItemIcon>
+              <ListItemText
+                primary="Back Dashboard"
+                primaryTypographyProps={{ fontSize: '0.875rem' }}
+              />
+            </ListItemButton>
+
+            <Typography
+              variant="overline"
+              sx={{ px: 1, color: 'text.secondary', fontWeight: 'bold' }}
+            >
+              Modules
+            </Typography>
+
+            {availableMenuItems.map((item) => (
+              <ListItemButton
+                key={item.id}
+                selected={activeTab === item.id}
+                onClick={() => setActiveTab(item.id)}
                 sx={{
-                  textAlign: 'center',
-                  py: 4,
-                  border: 2,
-                  borderStyle: 'dashed',
-                  borderColor: 'divider',
-                  borderRadius: 1,
-                  color: 'text.secondary',
+                  borderRadius: 2,
+                  mb: 0.5,
+                  '&.Mui-selected': {
+                    bgcolor: '#eff6ff',
+                    color: '#1e3a8a',
+                    '& .MuiListItemIcon-root': { color: '#1e3a8a' },
+                  },
                 }}
               >
-                <Typography>
-                  No domains configured. Add your first domain to get started.
-                </Typography>
-              </Box>
-            )}
+                <ListItemIcon sx={{ minWidth: 40 }}>{item.icon}</ListItemIcon>
+                <ListItemText
+                  primary={item.label}
+                  primaryTypographyProps={{
+                    fontSize: '0.9rem',
+                    fontWeight: 500,
+                  }}
+                />
+              </ListItemButton>
+            ))}
+          </List>
+        </Paper>
+      )}
 
-            {/* Info Box (Cập nhật text) */}
-            <Alert severity="info" icon={<Info />} sx={{ mt: 3 }}>
-              <Typography variant="subtitle2" fontWeight={600} gutterBottom>
-                Domain Policy
+      {/* 2. ADMIN CONTENT AREA */}
+      <Box sx={{ flexGrow: 1, p: 4, bgcolor: '#fff', overflow: 'auto' }}>
+        <Container maxWidth="xl">
+          {!shouldShowSidebar && (
+            <Box
+              sx={{ mb: 4, display: 'flex', justifyContent: 'space-between' }}
+            >
+              <Typography variant="h5" fontWeight="bold">
+                Admin Settings
               </Typography>
-              <Typography variant="body2">
-                • You can add any valid domain (e.g. <strong>gmail.com</strong>,{' '}
-                <strong>abc.com</strong>)
-                <br />• Users with emails matching these domains will be allowed
-                to log in.
-                <br />• Removing a domain will immediately revoke access for
-                those users.
+              <Button
+                startIcon={<ArrowBack />}
+                onClick={() => navigate('/dashboard')}
+              >
+                Back
+              </Button>
+            </Box>
+          )}
+
+          {shouldShowSidebar && (
+            <Box sx={{ mb: 3, pb: 2, borderBottom: '1px solid #f1f5f9' }}>
+              <Typography variant="h5" fontWeight="bold" color="#1e293b">
+                {menuItems.find((i) => i.id === activeTab)?.label}
               </Typography>
-            </Alert>
-          </CardContent>
-        </Card>
+            </Box>
+          )}
+
+          {activeTab === 'whitelist' && <WhitelistManager />}
+          {activeTab === 'users' && <UserRoleManager />}
+          {activeTab === 'logs' && (
+            <Typography color="text.secondary">
+              Logs system coming soon...
+            </Typography>
+          )}
+        </Container>
       </Box>
     </Box>
   );

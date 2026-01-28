@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   Box,
   Card,
@@ -18,18 +18,25 @@ import {
   Snackbar,
   IconButton,
   Tooltip,
+  List,
+  ListItem,
+  ListItemIcon,
+  ListItemText,
 } from '@mui/material';
+
+// 🔥 QUAN TRỌNG: Dùng Grid2 để hỗ trợ prop 'size' và layout flex chuẩn
 import Grid from '@mui/material/Grid';
 
 import {
   Save,
-  VerifiedUser,
-  School,
-  Work,
   Edit,
   Cancel,
   CameraAlt,
   Badge,
+  Email,
+  CalendarMonth,
+  Business,
+  Star,
 } from '@mui/icons-material';
 import { api } from '../services/api';
 
@@ -53,17 +60,21 @@ export default function ProfileSetting() {
   const [saving, setSaving] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [notification, setNotification] = useState<{
-    type: 'success' | 'error';
+    type: 'success' | 'error' | 'info' | 'warning';
     message: string;
   } | null>(null);
 
-  // 👇 STATE MỚI: Chứa danh sách bộ môn từ API
   const [departments, setDepartments] = useState<any[]>([]);
+
+  // State cho Avatar
+  const [previewAvatar, setPreviewAvatar] = useState<string | null>(null);
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [formData, setFormData] = useState({
     name: '',
     email: '',
-    roles: [] as string[],
+    roles: [] as any[], // Chấp nhận cả String và Object
     jobTitle: '',
     academicRank: 'Không',
     degree: 'Cử nhân',
@@ -72,23 +83,44 @@ export default function ProfileSetting() {
     intellectualProperty: '',
     joinDate: '',
     gender: 'Nam',
-    departmentID: '', // ID bộ môn đang chọn
+    departmentID: '',
     staffCode: '',
+    avatarUrl: '',
   });
 
   const [originalData, setOriginalData] = useState<any>(null);
 
   useEffect(() => {
-    // Gọi cả 2 API cùng lúc khi vào trang
     const initData = async () => {
       setLoading(true);
       try {
-        // 1. Lấy danh sách Departments trước
-        const deptRes = await api.get('/departments');
-        setDepartments(deptRes.data);
+        const [deptRes, profileRes] = await Promise.all([
+          api.get('/departments'),
+          api.get('/users/profile'),
+        ]);
 
-        // 2. Lấy Profile User
-        await fetchProfile();
+        setDepartments(deptRes.data);
+        const u = profileRes.data;
+
+        const mappedData = {
+          name: u.name || '',
+          email: u.email || '',
+          roles: u.roles || [],
+          jobTitle: u.jobTitle || '',
+          academicRank: u.academicRank || 'Không',
+          degree: u.degree || 'Cử nhân',
+          teachingHours: u.teachingHours || 0,
+          awards: u.awards || '',
+          intellectualProperty: u.intellectualProperty || '',
+          joinDate: u.joinDate ? u.joinDate.split('T')[0] : '',
+          gender: u.gender || 'Nam',
+          departmentID: u.department ? u.department.id : '',
+          staffCode: u.staffCode || '',
+          avatarUrl: u.avatarUrl || '',
+        };
+
+        setFormData(mappedData);
+        setOriginalData(mappedData);
       } catch (error) {
         console.error('Lỗi khởi tạo:', error);
       } finally {
@@ -99,57 +131,41 @@ export default function ProfileSetting() {
     initData();
   }, []);
 
-  const fetchProfile = async () => {
-    try {
-      const res = await api.get('/users/profile');
-      const u = res.data;
-
-      const mappedData = {
-        name: u.name || '',
-        email: u.email || '',
-        roles: u.roles || [],
-        jobTitle: u.jobTitle || '',
-        academicRank: u.academicRank || 'Không',
-        degree: u.degree || 'Cử nhân',
-        teachingHours: u.teachingHours || 0,
-        awards: u.awards || '',
-        intellectualProperty: u.intellectualProperty || '',
-        joinDate: u.joinDate ? u.joinDate.split('T')[0] : '',
-        gender: u.gender || 'Nam',
-        // 👇 Quan trọng: Map ID từ object department về state
-        departmentID: u.department ? u.department.id : '',
-        staffCode: u.staffCode || '',
-      };
-
-      setFormData(mappedData);
-      setOriginalData(mappedData);
-    } catch (error) {
-      console.error('Lỗi tải profile:', error);
-      setNotification({
-        type: 'error',
-        message: 'Không thể tải thông tin cá nhân.',
-      });
-    }
-  };
-
   const handleChange = (field: string, value: any) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
-  const handleEdit = () => {
-    setIsEditing(true);
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        setNotification({ type: 'error', message: 'Ảnh không được quá 5MB' });
+        return;
+      }
+      setAvatarFile(file);
+      setPreviewAvatar(URL.createObjectURL(file));
+    }
   };
+
+  const handleEdit = () => setIsEditing(true);
 
   const handleCancel = () => {
     setFormData(originalData);
+    setPreviewAvatar(null);
+    setAvatarFile(null);
     setIsEditing(false);
-    setNotification({ type: 'error', message: 'Đã hủy bỏ thay đổi.' });
+    setNotification({ type: 'info', message: 'Đã hủy bỏ thay đổi.' });
   };
 
   const handleSave = async () => {
     setSaving(true);
     try {
-      // 👇 Payload gửi đi: Nhớ kèm departmentId
+      if (avatarFile) {
+        const formDataAvatar = new FormData();
+        formDataAvatar.append('file', avatarFile);
+        // Upload logic here... (Chưa có API upload thật nên tạm bỏ qua)
+      }
+
       const payload = {
         name: formData.name,
         jobTitle: formData.jobTitle,
@@ -160,8 +176,9 @@ export default function ProfileSetting() {
         intellectualProperty: formData.intellectualProperty,
         joinDate: formData.joinDate,
         gender: formData.gender,
-        departmentId: formData.departmentID, // Map đúng key DTO backend yêu cầu
+        departmentId: formData.departmentID,
         staffCode: formData.staffCode,
+        avatarUrl: formData.avatarUrl,
       };
 
       await api.patch('/users/profile', payload);
@@ -171,9 +188,9 @@ export default function ProfileSetting() {
         message: 'Cập nhật hồ sơ thành công!',
       });
       setOriginalData(formData);
+      setAvatarFile(null);
       setIsEditing(false);
 
-      // Cập nhật session storage để Header hiển thị tên mới nếu có đổi tên
       const userStr = sessionStorage.getItem('user');
       if (userStr) {
         const user = JSON.parse(userStr);
@@ -193,6 +210,40 @@ export default function ProfileSetting() {
     }
   };
 
+  // =========================================================
+  // 👇 1. FIX LOGIC HIỂN THỊ ROLE (Để hết bị hiện Lecturer)
+  // =========================================================
+  const getDisplayRole = (userRoles: any[]) => {
+    if (!userRoles || userRoles.length === 0) return 'Lecturer';
+
+    // Chuẩn hóa Role về mảng String
+    const roles = userRoles.map((r: any) =>
+      typeof r === 'string' ? r : r.slug || r.name,
+    );
+
+    if (roles.includes('SUPER_ADMIN')) return 'Super Admin';
+    if (roles.includes('SYSTEM_ADMIN')) return 'System Admin';
+    if (roles.includes('DEAN')) return 'Trưởng bộ môn';
+    if (roles.includes('USER')) return 'Giảng viên';
+
+    return 'Lecturer';
+  };
+
+  const getRoleColor = (label: string): any => {
+    if (label === 'Super Admin') return 'error';
+    if (label === 'System Admin') return 'warning';
+    if (label === 'Trưởng bộ môn') return 'success';
+    return 'primary';
+  };
+
+  // Lấy tên bộ môn
+  const currentDeptName =
+    departments.find((d) => d.id === formData.departmentID)?.name ||
+    'Chưa cập nhật';
+
+  const displayRoleLabel = getDisplayRole(formData.roles);
+  const displayRoleColor = getRoleColor(displayRoleLabel);
+
   if (loading)
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', p: 5 }}>
@@ -201,7 +252,8 @@ export default function ProfileSetting() {
     );
 
   return (
-    <Box sx={{ maxWidth: 1200, mx: 'auto' }}>
+    <Box sx={{ maxWidth: 1200, mx: 'auto', pb: 5 }}>
+      {/* Header Title */}
       <Box
         sx={{
           mb: 3,
@@ -236,7 +288,13 @@ export default function ProfileSetting() {
             <Button
               variant="contained"
               color="success"
-              startIcon={saving ? <CircularProgress size={20} /> : <Save />}
+              startIcon={
+                saving ? (
+                  <CircularProgress size={20} color="inherit" />
+                ) : (
+                  <Save />
+                )
+              }
               onClick={handleSave}
               disabled={saving}
             >
@@ -261,124 +319,220 @@ export default function ProfileSetting() {
         </Alert>
       </Snackbar>
 
-      <Grid container spacing={3}>
-        {/* CỘT TRÁI: IDENTITY CARD */}
-        <Grid size={{ xs: 12, md: 4 }}>
+      {/* 🔥 FIX LAYOUT: 
+         - Thêm alignItems="stretch" để 2 cột cao bằng nhau
+      */}
+      <Grid container spacing={3} sx={{ alignItems: 'stretch' }}>
+        {/* ================= CỘT TRÁI: IDENTITY CARD ================= */}
+        <Grid size={{ xs: 12, md: 4 }} sx={{ display: 'flex' }}>
           <Card
             variant="outlined"
             sx={{
               borderRadius: 3,
               boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
-              height: '100%',
+              width: '100%',
+              height: '100%', // Kéo full chiều cao
+              overflow: 'visible',
+              mt: 2, // Margin top để né cái Avatar bay lên
+              display: 'flex',
+              flexDirection: 'column',
             }}
           >
-            <CardContent
+            {/* 1. Phần Ảnh Bìa */}
+            <Box
               sx={{
-                textAlign: 'center',
-                py: 4,
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                height: '100%',
+                height: 120,
+                background: 'linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%)',
+                borderTopLeftRadius: 12,
+                borderTopRightRadius: 12,
+                position: 'relative',
               }}
+            />
+
+            <CardContent
+              sx={{ pt: 0, textAlign: 'center', pb: 4, flexGrow: 1 }}
             >
-              <Box sx={{ position: 'relative', display: 'inline-block' }}>
-                <Avatar
-                  sx={{
-                    width: 140,
-                    height: 140,
-                    mx: 'auto',
-                    mb: 2,
-                    bgcolor: '#1e3a8a',
-                    fontSize: 60,
-                    border: '4px solid #e2e8f0',
-                  }}
-                  src={formData.name ? undefined : undefined}
-                >
-                  {formData.name.charAt(0)}
-                </Avatar>
-                <Tooltip title="Đổi ảnh đại diện (Chưa hỗ trợ)">
-                  <IconButton
-                    sx={{
-                      position: 'absolute',
-                      bottom: 10,
-                      right: 0,
-                      bgcolor: 'white',
-                      border: '1px solid #e2e8f0',
-                      '&:hover': { bgcolor: '#f1f5f9' },
-                    }}
-                    size="small"
-                  >
-                    <CameraAlt fontSize="small" color="primary" />
-                  </IconButton>
-                </Tooltip>
-              </Box>
-
-              <Typography variant="h5" fontWeight="bold" sx={{ mt: 1 }}>
-                {formData.name}
-              </Typography>
-              <Typography variant="body1" color="text.secondary" gutterBottom>
-                {formData.email}
-              </Typography>
-
-              <Divider sx={{ my: 2, width: '80%' }} />
-
+              {/* 2. Phần Avatar */}
               <Box
                 sx={{
                   display: 'flex',
-                  gap: 1,
                   justifyContent: 'center',
-                  flexWrap: 'wrap',
+                  mt: '-60px',
+                  mb: 2,
+                  position: 'relative',
                 }}
               >
-                {formData.roles.map((role) => (
-                  <Chip
-                    key={role}
-                    label={role === 'SYSTEM_ADMIN' ? 'Admin' : 'User'}
-                    color={role === 'SYSTEM_ADMIN' ? 'error' : 'default'}
-                    size="small"
-                    icon={<VerifiedUser />}
+                <Box sx={{ position: 'relative' }}>
+                  <Avatar
+                    sx={{
+                      width: 120,
+                      height: 120,
+                      bgcolor: '#1e3a8a',
+                      fontSize: 50,
+                      border: '4px solid white',
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                    }}
+                    src={previewAvatar || formData.avatarUrl || undefined}
+                  >
+                    {!previewAvatar &&
+                      !formData.avatarUrl &&
+                      formData.name.charAt(0)}
+                  </Avatar>
+
+                  {isEditing && (
+                    <Tooltip title="Tải ảnh lên">
+                      <IconButton
+                        sx={{
+                          position: 'absolute',
+                          bottom: 5,
+                          right: 5,
+                          bgcolor: 'white',
+                          boxShadow: 2,
+                          '&:hover': { bgcolor: '#f0f9ff' },
+                        }}
+                        size="small"
+                        onClick={() => fileInputRef.current?.click()}
+                      >
+                        <CameraAlt fontSize="small" color="primary" />
+                      </IconButton>
+                    </Tooltip>
+                  )}
+                  <input
+                    type="file"
+                    hidden
+                    ref={fileInputRef}
+                    accept="image/*"
+                    onChange={handleAvatarChange}
                   />
-                ))}
-                <Chip
-                  label={formData.jobTitle || 'Chưa cập nhật chức vụ'}
-                  color="primary"
-                  variant={formData.jobTitle ? 'filled' : 'outlined'}
-                  size="small"
-                  icon={<Work />}
-                />
+                </Box>
               </Box>
 
-              <Box sx={{ mt: 3, width: '100%', px: 2 }}>
-                <Grid container spacing={1}>
-                  <Grid size={{ xs: 6 }}>
-                    <Typography variant="caption" color="text.secondary">
-                      Học hàm
-                    </Typography>
-                    <Typography variant="subtitle2">
-                      {formData.academicRank}
-                    </Typography>
-                  </Grid>
-                  <Grid size={{ xs: 6 }}>
-                    <Typography variant="caption" color="text.secondary">
-                      Học vị
-                    </Typography>
-                    <Typography variant="subtitle2">
-                      {formData.degree}
-                    </Typography>
-                  </Grid>
-                </Grid>
-              </Box>
+              {/* 3. Tên và Role (ĐÃ FIX) */}
+              <Typography variant="h5" fontWeight="bold" gutterBottom>
+                {formData.name}
+              </Typography>
+
+              <Chip
+                label={displayRoleLabel}
+                color={displayRoleColor}
+                size="small"
+                sx={{ mb: 2, fontWeight: 'bold' }}
+              />
+
+              <Divider sx={{ my: 2 }} />
+
+              {/* 4. List thông tin */}
+              <List
+                dense
+                sx={{ textAlign: 'left', bgcolor: '#f8fafc', borderRadius: 2 }}
+              >
+                <ListItem>
+                  <ListItemIcon>
+                    <Email color="action" />
+                  </ListItemIcon>
+                  <ListItemText
+                    primary="Email"
+                    secondary={formData.email}
+                    primaryTypographyProps={{
+                      variant: 'caption',
+                      color: 'text.secondary',
+                    }}
+                    secondaryTypographyProps={{
+                      variant: 'body2',
+                      color: 'text.primary',
+                      fontWeight: 500,
+                    }}
+                  />
+                </ListItem>
+                <ListItem>
+                  <ListItemIcon>
+                    <Business color="action" />
+                  </ListItemIcon>
+                  <ListItemText
+                    primary="Đơn vị công tác"
+                    secondary={`${currentDeptName} (${formData.departmentID ? departments.find((d) => d.id === formData.departmentID)?.code : 'N/A'})`}
+                    primaryTypographyProps={{
+                      variant: 'caption',
+                      color: 'text.secondary',
+                    }}
+                    secondaryTypographyProps={{
+                      variant: 'body2',
+                      color: 'text.primary',
+                      fontWeight: 500,
+                    }}
+                  />
+                </ListItem>
+                <ListItem>
+                  <ListItemIcon>
+                    <Badge color="action" />
+                  </ListItemIcon>
+                  <ListItemText
+                    primary="Mã cán bộ"
+                    secondary={formData.staffCode || 'Chưa cập nhật'}
+                    primaryTypographyProps={{
+                      variant: 'caption',
+                      color: 'text.secondary',
+                    }}
+                    secondaryTypographyProps={{
+                      variant: 'body2',
+                      color: 'text.primary',
+                      fontWeight: 500,
+                    }}
+                  />
+                </ListItem>
+                <ListItem>
+                  <ListItemIcon>
+                    <Star color="action" />
+                  </ListItemIcon>
+                  <ListItemText
+                    primary="Học hàm / Học vị"
+                    secondary={`${formData.academicRank !== 'Không' ? formData.academicRank : ''} ${formData.degree}`}
+                    primaryTypographyProps={{
+                      variant: 'caption',
+                      color: 'text.secondary',
+                    }}
+                    secondaryTypographyProps={{
+                      variant: 'body2',
+                      color: 'text.primary',
+                      fontWeight: 500,
+                    }}
+                  />
+                </ListItem>
+                <ListItem>
+                  <ListItemIcon>
+                    <CalendarMonth color="action" />
+                  </ListItemIcon>
+                  <ListItemText
+                    primary="Ngày gia nhập"
+                    secondary={formData.joinDate || 'Chưa cập nhật'}
+                    primaryTypographyProps={{
+                      variant: 'caption',
+                      color: 'text.secondary',
+                    }}
+                    secondaryTypographyProps={{
+                      variant: 'body2',
+                      color: 'text.primary',
+                      fontWeight: 500,
+                    }}
+                  />
+                </ListItem>
+              </List>
             </CardContent>
           </Card>
         </Grid>
 
-        {/* CỘT PHẢI: FORM CHI TIẾT */}
-        <Grid size={{ xs: 12, md: 8 }}>
+        {/* ================= CỘT PHẢI: FORM CHI TIẾT ================= */}
+        <Grid size={{ xs: 12, md: 8 }} sx={{ display: 'flex' }}>
           <Card
             variant="outlined"
-            sx={{ borderRadius: 3, boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}
+            sx={{
+              borderRadius: 3,
+              boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
+              width: '100%',
+              height: '100%',
+              // 🔥 FIX LAYOUT: Thêm mt: 2 vào đây để nó tụt xuống bằng thằng bên trái
+              mt: 2,
+            }}
           >
             <CardContent sx={{ p: 3 }}>
               <Typography
@@ -392,7 +546,7 @@ export default function ProfileSetting() {
                   color: '#1e3a8a',
                 }}
               >
-                <School /> Thông tin chi tiết
+                <Edit /> Chỉnh sửa thông tin
               </Typography>
 
               <Grid container spacing={2}>
@@ -411,12 +565,10 @@ export default function ProfileSetting() {
                   <TextField
                     fullWidth
                     label="Mã cán bộ (Staff ID)"
-                    placeholder="Ví dụ: VNU12345"
                     value={formData.staffCode}
                     onChange={(e) => handleChange('staffCode', e.target.value)}
-                    disabled={!isEditing} // Chỉ cho sửa khi bấm Edit
+                    disabled={!isEditing}
                     variant={isEditing ? 'outlined' : 'filled'}
-                    helperText="Mã định danh duy nhất của giảng viên"
                   />
                 </Grid>
 
@@ -441,7 +593,6 @@ export default function ProfileSetting() {
                   </FormControl>
                 </Grid>
 
-                {/* 👇 KHU VỰC BỘ MÔN MỚI THÊM VÀO ĐÂY */}
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <FormControl
                     fullWidth
@@ -456,7 +607,6 @@ export default function ProfileSetting() {
                       }
                       disabled={!isEditing}
                     >
-                      {/* Render từ State departments lấy từ API */}
                       <MenuItem value="">
                         <em>Chưa chọn</em>
                       </MenuItem>
@@ -468,7 +618,6 @@ export default function ProfileSetting() {
                     </Select>
                   </FormControl>
                 </Grid>
-                {/* 👆 HẾT KHU VỰC BỘ MÔN */}
 
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <TextField
@@ -505,6 +654,7 @@ export default function ProfileSetting() {
                     </Select>
                   </FormControl>
                 </Grid>
+
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <FormControl
                     fullWidth
@@ -546,7 +696,7 @@ export default function ProfileSetting() {
                   </FormControl>
                 </Grid>
 
-                <Grid size={{ xs: 12 }}>
+                <Grid size={{ xs: 12, sm: 6 }}>
                   <TextField
                     fullWidth
                     type="number"
@@ -554,9 +704,6 @@ export default function ProfileSetting() {
                     value={formData.teachingHours}
                     onChange={(e) =>
                       handleChange('teachingHours', e.target.value)
-                    }
-                    helperText={
-                      isEditing ? 'Số liệu dùng để tính KPI giảng dạy' : ''
                     }
                     disabled={!isEditing}
                     variant={isEditing ? 'outlined' : 'filled'}
@@ -570,14 +717,14 @@ export default function ProfileSetting() {
 
                 <Grid size={{ xs: 12 }}>
                   <Divider sx={{ my: 1 }} />
-                </Grid>
-
-                <Grid size={{ xs: 12 }}>
                   <Typography
                     variant="subtitle2"
                     sx={{ mb: 1, fontWeight: 'bold' }}
                   >
-                    <Badge sx={{ mr: 1 }} /> Thành tích & Nghiên cứu
+                    <Star
+                      sx={{ mr: 1, verticalAlign: 'middle', color: '#f59e0b' }}
+                    />
+                    Thành tích & Nghiên cứu
                   </Typography>
                 </Grid>
 
@@ -585,13 +732,8 @@ export default function ProfileSetting() {
                   <TextField
                     fullWidth
                     multiline
-                    rows={3}
+                    rows={2}
                     label="Khen thưởng & Danh hiệu"
-                    placeholder={
-                      isEditing
-                        ? 'Ví dụ: Chiến sĩ thi đua cấp cơ sở 2024...'
-                        : 'Chưa có thông tin'
-                    }
                     value={formData.awards}
                     onChange={(e) => handleChange('awards', e.target.value)}
                     disabled={!isEditing}
@@ -603,13 +745,8 @@ export default function ProfileSetting() {
                   <TextField
                     fullWidth
                     multiline
-                    rows={3}
-                    label="Sở hữu trí tuệ (Bằng sáng chế/Giải pháp)"
-                    placeholder={
-                      isEditing
-                        ? 'Nhập danh sách các bằng sáng chế...'
-                        : 'Chưa có thông tin'
-                    }
+                    rows={2}
+                    label="Sở hữu trí tuệ"
                     value={formData.intellectualProperty}
                     onChange={(e) =>
                       handleChange('intellectualProperty', e.target.value)

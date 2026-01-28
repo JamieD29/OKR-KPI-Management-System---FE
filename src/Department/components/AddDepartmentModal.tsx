@@ -49,7 +49,16 @@ export default function AddDepartmentModal({
       onSuccess(); // Báo cho cha biết là xong rồi
       onClose(); // Đóng modal
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Có lỗi xảy ra');
+      // NestJS thường trả về message dạng mảng string, hoặc string đơn
+      const errorMsg = err.response?.data?.message;
+
+      if (Array.isArray(errorMsg)) {
+        // Nếu là mảng nhiều lỗi -> Lấy cái đầu tiên cho gọn, hoặc nối lại
+        setError(errorMsg[0]);
+      } else {
+        // Nếu là chuỗi đơn
+        setError(errorMsg || 'Có lỗi xảy ra');
+      }
     } finally {
       setLoading(false);
     }
@@ -62,7 +71,20 @@ export default function AddDepartmentModal({
       </DialogTitle>
       <DialogContent dividers>
         <Stack spacing={2} sx={{ mt: 1 }}>
-          {error && <Alert severity="error">{error}</Alert>}
+          {error && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {/* Nếu error là mảng thì map ra, không thì hiện text */}
+              {Array.isArray(error) ? (
+                <ul style={{ margin: 0, paddingLeft: 20 }}>
+                  {error.map((e: string, i: number) => (
+                    <li key={i}>{e}</li>
+                  ))}
+                </ul>
+              ) : (
+                error
+              )}
+            </Alert>
+          )}
 
           <TextField
             label="Tên bộ môn"
