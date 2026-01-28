@@ -2,18 +2,16 @@ import React from "react";
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 
 // Import Pages
-import Login from "../pages/Login";
-import Dashboard from "../pages/Dashboard";
-import AdminSettings from "../pages/AdminSetting";
-import ProfileSettings from "../pages/ProfileSetting";
-import Department from "../pages/Department/Department";
-import AuthCallback from "../pages/AuthCallback"; // Import thêm
-import AcceptInvitation from "../components/AcceptInvitation"; // Import thêm
+import Login from '../pages/Login';
+import Dashboard from '../pages/Dashboard';
+import AdminSettings from '../pages/AdminSetting';
+import ProfileSettings from '../pages/ProfileSetting';
+import Department from '../Department/Department';
+import AuthCallback from '../pages/AuthCallback'; // Import thêm
+import AcceptInvitation from '../components/AcceptInvitation'; // Import thêm
 
 // Import Layouts
-import MainLayout from "../layouts/MainLayout";
-import MemberManagerPage from "../pages/Member/MemberManagePage";
-import MemberDetailPage from "../pages/Member/pages/MemberDetailPage";
+import MainLayout from '../layouts/MainLayout';
 
 // 1. Hook check đăng nhập
 function useAuth() {
@@ -21,17 +19,17 @@ function useAuth() {
   return !!authToken;
 }
 
-// 2. Component bảo vệ Admin (CÓ LOG DEBUG)
+// 2. Component bảo vệ Admin
 function AdminRoute({ children }: { children: React.ReactNode }) {
   const userStr = sessionStorage.getItem("user");
   const user = userStr ? JSON.parse(userStr) : {};
-  const roles = user.roles || []; // Mảng roles từ backend
+  const roles = user.roles || [];
 
   // --- DEBUG LOG (Mở F12 xem cái này in ra gì) ---
-  console.log("👮 AdminRoute Check:", { roles });
+  console.log('👮 AdminRoute Check:', { roles });
 
   // Check quyền (SYSTEM_ADMIN từ backend, hoặc admin thường)
-  const isAdmin = roles.includes("SYSTEM_ADMIN") || roles.includes("admin");
+  const isAdmin = roles.includes('SYSTEM_ADMIN') || roles.includes('admin');
 
   if (!isAdmin) {
     console.warn("⛔ Access Denied: Not an Admin -> Redirecting to Dashboard");
@@ -60,7 +58,7 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
 export default function AppRoutes() {
   return (
     <Routes>
-      {/* --- CÁC ROUTE PHỤ (Auth, Invite) --- */}
+      {/* --- CÁC ROUTE PHỤ --- */}
       <Route path="/auth/microsoft/callback" element={<AuthCallback />} />
       <Route path="/invite/accept/:token" element={<AcceptInvitation />} />
 
@@ -77,28 +75,21 @@ export default function AppRoutes() {
         }
       />
 
-      {/* --- MAIN LAYOUT GROUP --- */}
+      {/* --- MAIN LAYOUT GROUP (Đã đăng nhập) --- */}
       <Route
         element={
-          // <ProtectedRoute>
-          //   <MainLayout />
-          // </ProtectedRoute>
-          <MainLayout />
+          <ProtectedRoute>
+            <MainLayout />
+          </ProtectedRoute>
         }
       >
-        {/* Các trang User thường */}
+        {/* 1. Dashboard Chính */}
         <Route path="/dashboard" element={<Dashboard />} />
+
+        {/* 2. Hồ sơ cá nhân */}
         <Route path="/profile" element={<ProfileSettings />} />
         <Route path="/admin/department" element={<Department />} />
-        <Route path="/admin/member" element={<MemberManagerPage />} />
-        <Route
-          path="/admin/members/:id"
-          element={
-            
-              <MemberDetailPage />
-            
-          }
-        />
+
         {/* Trang Admin (Được bảo vệ 2 lớp) */}
         <Route
           path="/admin/settings"
@@ -108,6 +99,9 @@ export default function AppRoutes() {
             </AdminRoute>
           }
         />
+
+        {/* Route cũ (Giữ lại để tương thích nếu cần, hoặc xóa đi) */}
+        <Route path="/admin/department" element={<Department />} />
       </Route>
 
       {/* --- CATCH ALL --- */}

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Box,
@@ -11,6 +11,8 @@ import {
   ListItemText,
   Typography,
   Divider,
+  Collapse,
+  Tooltip, // Import thêm Tooltip cho đẹp
 } from '@mui/material';
 import {
   LayoutDashboard,
@@ -18,7 +20,6 @@ import {
   BookOpen,
   HelpCircle,
   GraduationCap,
-  User,
 } from 'lucide-react';
 
 const drawerWidth = 280;
@@ -43,23 +44,20 @@ export default function Sidebar({ mobileOpen, onClose }: SidebarProps) {
       icon: <Building2 size={20} />,
       path: '/admin/department',
     },
-    {
-      text: 'Members',
-      icon: <User size={20} />,
-      path: '/admin/member',
-    },
     { text: 'Research & Docs', icon: <BookOpen size={20} />, path: '/docs' },
   ];
 
-  // Nội dung bên trong Sidebar (Dùng chung cho cả Mobile và PC)
+  // Nội dung bên trong Sidebar
   const drawerContent = (
-    <div>
+    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+      {/* 1. HEADER */}
       <Toolbar
         sx={{
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
           py: 3,
+          flexShrink: 0,
         }}
       >
         <Box
@@ -81,62 +79,162 @@ export default function Sidebar({ mobileOpen, onClose }: SidebarProps) {
           VNU-HCMUS
         </Typography>
       </Toolbar>
-      <Divider sx={{ borderColor: 'rgba(255,255,255,0.1)' }} />
 
-      <List sx={{ px: 2, mt: 2 }}>
-        {menuItems.map((item) => (
-          <ListItem
-            key={item.text}
-            disablePadding
-            sx={{ display: 'block', mb: 1 }}
-          >
+      <Divider sx={{ borderColor: 'rgba(255,255,255,0.1)', mb: 2 }} />
+
+      {/* 2. MENU LIST */}
+      <Box
+        sx={{
+          flexGrow: 1,
+          overflowY: 'auto',
+          px: 2,
+          '&::-webkit-scrollbar': { display: 'none' },
+          msOverflowStyle: 'none',
+          scrollbarWidth: 'none',
+        }}
+      >
+        <List component="nav">
+          {/* Dashboard */}
+          <ListItem disablePadding sx={{ display: 'block', mb: 1 }}>
             <ListItemButton
-              onClick={() => {
-                navigate(item.path);
-                onClose(); // Đóng nếu đang ở mobile
-              }}
-              sx={{
-                borderRadius: 2,
-                minHeight: 48,
-                color: 'white',
-                bgcolor:
-                  location.pathname === item.path
-                    ? 'rgba(255, 255, 255, 0.15)'
-                    : 'transparent',
-                '&:hover': { bgcolor: 'rgba(255,255,255,0.08)' },
-                borderLeft:
-                  location.pathname === item.path
-                    ? '4px solid #60a5fa'
-                    : '4px solid transparent',
-              }}
+              onClick={() => handleNavigate('/')}
+              sx={getItemStyles('/')}
             >
-              <ListItemIcon
-                sx={{
-                  color:
-                    location.pathname === item.path ? '#60a5fa' : 'inherit',
-                  minWidth: 40,
-                }}
-              >
-                {item.icon}
+              <ListItemIcon sx={getIconStyles('/')}>
+                <LayoutDashboard size={20} />
               </ListItemIcon>
               <ListItemText
-                primary={item.text}
+                primary="Dashboard"
                 primaryTypographyProps={{ fontWeight: 500 }}
               />
             </ListItemButton>
           </ListItem>
-        ))}
-      </List>
 
-      <Box
-        sx={{
-          p: 2,
-          mt: 'auto',
-          position: 'absolute',
-          bottom: 0,
-          width: '100%',
-        }}
-      >
+          {/* Cá nhân */}
+          <ListItemButton
+            onClick={() => setOpenPersonal(!openPersonal)}
+            sx={{ borderRadius: 2, mb: 0.5, color: 'white' }}
+          >
+            <ListItemIcon sx={{ color: 'inherit', minWidth: 40 }}>
+              <User size={20} />
+            </ListItemIcon>
+            <ListItemText
+              primary="Cá nhân"
+              primaryTypographyProps={{ fontWeight: 'bold' }}
+            />
+            {openPersonal ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+          </ListItemButton>
+
+          <Collapse in={openPersonal} timeout="auto" unmountOnExit>
+            <List component="div" disablePadding>
+              <ListItemButton
+                sx={{ ...getItemStyles('/profile'), pl: 4, mb: 1 }}
+                onClick={() => handleNavigate('/profile')}
+              >
+                <ListItemIcon sx={getIconStyles('/profile')}>
+                  <FileText size={18} />
+                </ListItemIcon>
+                <ListItemText primary="Hồ sơ của tôi" />
+              </ListItemButton>
+              <ListItemButton
+                sx={{ ...getItemStyles('/my-okr'), pl: 4, mb: 1 }}
+                onClick={() => handleNavigate('/my-okr')}
+              >
+                <ListItemIcon sx={getIconStyles('/my-okr')}>
+                  <Target size={18} />
+                </ListItemIcon>
+                <ListItemText primary="OKR của tôi" />
+              </ListItemButton>
+            </List>
+          </Collapse>
+
+          {/* 🔥 BỘ MÔN (Đã sửa tên động) */}
+          <Tooltip title={departmentName} placement="right" arrow>
+            <ListItemButton
+              onClick={() => setOpenDept(!openDept)}
+              sx={{ borderRadius: 2, mb: 0.5, color: 'white' }}
+            >
+              <ListItemIcon sx={{ color: 'inherit', minWidth: 40 }}>
+                <Building2 size={20} />
+              </ListItemIcon>
+              <ListItemText
+                primary={departmentName} // 👈 Tên bộ môn ở đây
+                primaryTypographyProps={{
+                  fontWeight: 'bold',
+                  noWrap: true, // Nếu tên dài quá thì hiện ...
+                }}
+              />
+              {openDept ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+            </ListItemButton>
+          </Tooltip>
+
+          <Collapse in={openDept} timeout="auto" unmountOnExit>
+            <List component="div" disablePadding>
+              <ListItemButton
+                sx={{ ...getItemStyles('/departments/overview'), pl: 4, mb: 1 }}
+                onClick={() => handleNavigate('/departments/overview')}
+              >
+                <ListItemIcon sx={getIconStyles('/departments/overview')}>
+                  <LayoutDashboard size={18} />
+                </ListItemIcon>
+                <ListItemText primary="Tổng quan" />
+              </ListItemButton>
+              <ListItemButton
+                sx={{ ...getItemStyles('/departments/okr'), pl: 4, mb: 1 }}
+                onClick={() => handleNavigate('/departments/okr')}
+              >
+                <ListItemIcon sx={getIconStyles('/departments/okr')}>
+                  <Target size={18} />
+                </ListItemIcon>
+                <ListItemText primary="OKR Bộ môn" />
+              </ListItemButton>
+              <ListItemButton
+                sx={{ ...getItemStyles('/departments/kpi'), pl: 4, mb: 1 }}
+                onClick={() => handleNavigate('/departments/kpi')}
+              >
+                <ListItemIcon sx={getIconStyles('/departments/kpi')}>
+                  <BarChart3 size={18} />
+                </ListItemIcon>
+                <ListItemText primary="KPI Bộ môn" />
+              </ListItemButton>
+
+              {/* Chỉ hiện Nhân sự nếu là Manager */}
+              {isManager && (
+                <ListItemButton
+                  sx={{ ...getItemStyles('/departments/users'), pl: 4, mb: 1 }}
+                  onClick={() => handleNavigate('/departments/users')}
+                >
+                  <ListItemIcon sx={getIconStyles('/departments/users')}>
+                    <Users size={18} />
+                  </ListItemIcon>
+                  <ListItemText primary="Nhân sự" />
+                </ListItemButton>
+              )}
+            </List>
+          </Collapse>
+
+          {/* Research & Docs */}
+          <ListItem disablePadding sx={{ display: 'block', mb: 1, mt: 1 }}>
+            <ListItemButton
+              onClick={() => handleNavigate('/docs')}
+              sx={getItemStyles('/docs')}
+            >
+              <ListItemIcon sx={getIconStyles('/docs')}>
+                <BookOpen size={20} />
+              </ListItemIcon>
+              <ListItemText
+                primary="Research & Docs"
+                primaryTypographyProps={{ fontWeight: 500 }}
+              />
+            </ListItemButton>
+          </ListItem>
+        </List>
+      </Box>
+
+      {/* 3. FOOTER */}
+      <Box sx={{ p: 2, mt: 'auto' }}>
+        <Divider sx={{ borderColor: 'rgba(255,255,255,0.1)', mb: 2 }} />
+
         <ListItemButton sx={{ borderRadius: 2, color: 'white' }}>
           <ListItemIcon sx={{ color: 'inherit', minWidth: 40 }}>
             <HelpCircle size={20} />
@@ -144,7 +242,7 @@ export default function Sidebar({ mobileOpen, onClose }: SidebarProps) {
           <ListItemText primary="IT Support" />
         </ListItemButton>
       </Box>
-    </div>
+    </Box>
   );
 
   const sidebarStyles = {
@@ -159,14 +257,13 @@ export default function Sidebar({ mobileOpen, onClose }: SidebarProps) {
       component="nav"
       sx={{ width: { sm: drawerWidth }, flexShrink: { sm: 0 } }}
     >
-      {/* 1. Drawer cho Mobile (Temporary) */}
       <Drawer
         variant="temporary"
         open={mobileOpen}
         onClose={onClose}
-        ModalProps={{ keepMounted: true }} // Tốt cho SEO/Mobile performance
+        ModalProps={{ keepMounted: true }}
         sx={{
-          display: { xs: 'block', sm: 'none' }, // Chỉ hiện khi màn hình nhỏ (xs)
+          display: { xs: 'block', sm: 'none' },
           '& .MuiDrawer-paper': {
             boxSizing: 'border-box',
             width: drawerWidth,
@@ -176,12 +273,10 @@ export default function Sidebar({ mobileOpen, onClose }: SidebarProps) {
       >
         {drawerContent}
       </Drawer>
-
-      {/* 2. Drawer cho Desktop (Permanent) */}
       <Drawer
         variant="permanent"
         sx={{
-          display: { xs: 'none', sm: 'block' }, // Ẩn khi màn hình nhỏ, hiện khi màn hình lớn (sm trở lên)
+          display: { xs: 'none', sm: 'block' },
           '& .MuiDrawer-paper': {
             boxSizing: 'border-box',
             width: drawerWidth,

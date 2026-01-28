@@ -33,16 +33,24 @@ export default function Header({ onToggleSidebar, user }: HeaderProps) {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const openMenu = Boolean(anchorEl);
 
-  const userRoles = Array.isArray(user.roles) ? user.roles : [];
-  const isAdmin =
-    userRoles.includes('SYSTEM_ADMIN') || userRoles.includes('admin');
+  const rawRoles = Array.isArray(user.roles) ? user.roles : [];
+
+  // Nếu là Object { slug: 'SUPER_ADMIN' } -> lấy 'SUPER_ADMIN'
+  // Nếu là String 'SUPER_ADMIN' -> giữ nguyên
+  const normalizedRoles = rawRoles.map((r: any) =>
+    (typeof r === 'string' ? r : r?.slug || r?.name || '').toString(),
+  );
+
+  // 3. Check quyền (Thêm SUPER_ADMIN vào danh sách VIP)
+  const isAdmin = normalizedRoles.some((role: string) =>
+    ['SYSTEM_ADMIN', 'SUPER_ADMIN', 'admin'].includes(role),
+  );
 
   let displayRole = 'User';
-  if (userRoles.length > 0 && typeof userRoles[0] === 'string') {
-    displayRole = userRoles[0];
-  } else if (typeof user.role === 'string') {
-    displayRole = user.role;
-  }
+  if (normalizedRoles.includes('SUPER_ADMIN')) displayRole = 'Super Admin';
+  else if (normalizedRoles.includes('SYSTEM_ADMIN'))
+    displayRole = 'System Admin';
+  else if (normalizedRoles.length > 0) displayRole = normalizedRoles[0];
 
   const handleLogout = () => {
     sessionStorage.clear();

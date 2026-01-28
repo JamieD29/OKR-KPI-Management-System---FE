@@ -1,13 +1,13 @@
 import { useState } from "react";
-import type { Department, User } from "../../types/index";
-import { MOCK_DEPARTMENTS, MOCK_USERS } from "../../mocks/mockData";
+import type { Department, User } from "../types/index";
+import { MOCK_DEPARTMENTS, MOCK_USERS } from "../mocks/mockData";
 
 import { Breadcrumb } from "./components/Breadcrumb";
 import { DepartmentGrid } from "./components/DepartmentGrid";
 import { MemberTable } from "./components/MemberTable";
 import { MemberDetailModal } from "./components/MemberDetailModal";
-import { AddDepartmentModal } from "./components/AddDepartmentModal";
-// Import Modal mới
+import { AddDepartmentModal } from './components/AddDepartmentModal';
+ // Import Modal mới
 const DepartmentManagerPage = () => {
   const [departments, setDepartments] =
     useState<Department[]>(MOCK_DEPARTMENTS);
@@ -53,64 +53,141 @@ const DepartmentManagerPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 text-gray-900 font-sans">
-      {/* Header Container */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Title Section */}
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold text-gray-900">
-            Quản lý cơ cấu tổ chức
-          </h1>
-          <p className="mt-2 text-sm text-gray-600">
-            Hệ thống quản lý: Khoa &gt; Bộ môn &gt; Tổ/Nhóm &gt; Thành viên
-          </p>
-        </div>
+    <Container maxWidth="xl" sx={{ py: 4 }}>
+      {/* BREADCRUMBS */}
+      <Breadcrumbs separator={<NavigateNext fontSize="small" />} sx={{ mb: 3 }}>
+        <Link
+          underline="hover"
+          color="inherit"
+          href="/dashboard"
+          sx={{ display: 'flex', alignItems: 'center' }}
+        >
+          Dashboard
+        </Link>
+        <Typography
+          color="text.primary"
+          sx={{ display: 'flex', alignItems: 'center' }}
+        >
+          <School sx={{ mr: 0.5 }} fontSize="inherit" />
+          Quản lý Bộ môn
+        </Typography>
+      </Breadcrumbs>
 
-        {/* Navigation Breadcrumb */}
-        <div className="mb-6">
-          <Breadcrumb path={navPath} onNavigate={handleBreadcrumbClick} />
-        </div>
+      {/* HEADER & SEARCH */}
+      <Box
+        sx={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          mb: 4,
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: 2,
+        }}
+      >
+        <Box>
+          <Typography variant="h4" fontWeight="bold" color="#1e3a8a">
+            Danh sách Bộ môn
+          </Typography>
+          <Typography variant="body1" color="text.secondary">
+            Xem và quản lý cấu trúc nhân sự theo dạng danh sách
+          </Typography>
+        </Box>
 
-        {/* Main Content Area - Card trắng nền */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 min-h-[500px]">
-          {/* Case 1: Hiển thị Folder (Level 1, 2) */}
-          {(!currentDept || currentDept.level < 3) && (
-            <DepartmentGrid
-              departments={displayDepartments}
-              currentDept={currentDept}
-              onSelect={handleDeptClick}
-              onAddClick={() => setIsAddModalOpen(true)}
-            />
-          )}
+        <Box sx={{ display: 'flex', gap: 2 }}>
+          <TextField
+            size="small"
+            placeholder="Tìm kiếm bộ môn..."
+            value={deptSearch}
+            onChange={(e) => setDeptSearch(e.target.value)}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <Search color="action" />
+                </InputAdornment>
+              ),
+            }}
+            sx={{ bgcolor: 'white', minWidth: 250 }}
+          />
+          <Button
+            variant="contained"
+            startIcon={<Add />}
+            onClick={() => setOpenAddModal(true)}
+            sx={{ borderRadius: 2, textTransform: 'none', px: 3 }}
+          >
+            Thêm bộ môn
+          </Button>
+        </Box>
+      </Box>
 
-          {/* Case 2: Hiển thị Bảng thành viên (Level 3) */}
-          {currentDept?.level === 3 && (
-            <MemberTable
-              members={displayMembers}
-              departmentName={currentDept.name}
-              onSelectMember={setSelectedMember}
-            />
-          )}
-        </div>
-      </div>
+      {/* MASTER LIST (TABLE) */}
+      <TableContainer
+        component={Paper}
+        elevation={0}
+        sx={{
+          borderRadius: 4,
+          border: '1px solid #e2e8f0',
+          overflow: 'hidden', // Để border radius bo tròn đẹp
+        }}
+      >
+        <Table aria-label="collapsible table">
+          <TableHead sx={{ bgcolor: '#f8fafc' }}>
+            <TableRow>
+              <TableCell width="50" />
+              <TableCell sx={{ fontWeight: 'bold', color: '#475569' }}>
+                TÊN BỘ MÔN
+              </TableCell>
+              <TableCell
+                align="right"
+                sx={{ fontWeight: 'bold', color: '#475569' }}
+              >
+                QUY MÔ
+              </TableCell>
+              <TableCell
+                align="right"
+                sx={{ fontWeight: 'bold', color: '#475569' }}
+              >
+                THAO TÁC
+              </TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {loading ? (
+              <TableRow>
+                <TableCell colSpan={6} align="center" sx={{ py: 5 }}>
+                  <CircularProgress />
+                </TableCell>
+              </TableRow>
+            ) : filteredDepartments.length > 0 ? (
+              filteredDepartments.map((dept) => (
+                <DepartmentRow
+                  key={dept.id}
+                  row={dept}
+                  onDelete={handleDelete}
+                />
+              ))
+            ) : (
+              <TableRow>
+                <TableCell
+                  colSpan={6}
+                  align="center"
+                  sx={{ py: 5, color: 'text.secondary' }}
+                >
+                  Không tìm thấy bộ môn nào.
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </TableContainer>
 
-      {/* Modal */}
-      {selectedMember && (
-        <MemberDetailModal
-          member={selectedMember}
-          onClose={() => setSelectedMember(null)}
-        />
-      )}
-
-      {/* Modal Thêm Đơn vị mới (Đã kết nối) */}
+      {/* MODAL ADD */}
       <AddDepartmentModal
-        isOpen={isAddModalOpen}
-        onClose={() => setIsAddModalOpen(false)}
-        onAdd={handleAddDepartment}
-        parentDept={currentDept} // Truyền vị trí hiện tại vào để biết cha là ai
+        open={openAddModal}
+        onClose={() => setOpenAddModal(false)}
+        onSuccess={fetchDepartments}
       />
-    </div>
+    </Container>
   );
-};
+};;
 
 export default DepartmentManagerPage;
